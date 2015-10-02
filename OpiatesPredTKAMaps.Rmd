@@ -1,0 +1,208 @@
+---
+title: "OpiatesPredTKAMaps.Rmd"
+author: "Jordan Starr"
+date: "September 21, 2015"
+output: html_document
+---
+##Load Packages & Data
+```{r}
+library("ggplot2")
+library("ggmap")
+library("plyr")
+library("rgdal")
+library("scales")
+library("Cairo")
+library("maptools")
+library("rgeos")
+library("dplyr")
+library("grid")
+data <- read.csv("WorkDf5.csv", sep=";")
+statecodes <- read.delim("./state.txt", sep="|", header=T)
+statecodes$STATE_NAME <- as.character(statecodes$STATE_NAME)
+statecodes$STATE <- formatC(statecodes$STATE, width = 2, flag = '0')
+```
+
+##Clean Data
+
+Remove unnecessary columns
+```{r}
+data <- data[,c(9,10,19,39,47)]
+```
+Create MEDperMonth variable and remove extreme outliers
+```{r}
+data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
+ggplot(data=data, aes(data$MEDperMonth)) + geom_histogram() + coord_cartesian(ylim=c(0,5)) + scale_x_continuous(breaks=seq(50000,150000,10000))
+data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
+```
+Create chronic variable
+```{r}
+data$chronic <- ifelse(data$TimeBefore > 2, 1, 0)
+```
+Format state values for mapping
+```{r}
+unique(data$State)
+data$State <- as.character(data$State)
+data$State <- gsub("INDIA0", "Indiana", data$State)
+data$State <- gsub("SOUTH CAROLI0", "South Carolina", data$State)
+data$State <- gsub("ARIZO0", "Arizona", data$State)
+data$State <- gsub("NORTH CAROLI0", "North Carolina", data$State)
+data$State <- gsub("LOUISIA0", "Louisiana", data$State)
+data$State <- gsub("MONTA0", "Montana", data$State)
+
+#Function to format all state and county names
+simpleCap <- function(x) {
+        if (x == "DISTRICT OF COLUMBIA") {
+              return("District of Columbia")  
+        } else {
+                s <- tolower(x)
+                s <- strsplit(s, " ")[[1]]
+                paste(toupper(substring(s, 1,1)), substring(s, 2), sep="", collapse=" ")
+        }
+}
+data$State <- sapply(data$State, simpleCap)
+data$State <- gsub("*missing*", NA, data$State)
+
+#Function to convert state names to FIP codes
+recode <- function (x) {
+        if (is.na(x) | x == "Armed Forces Af,eu,me,ca" | x == "Armed Forces Amer (exc Ca0da)") {
+                y <- NA
+        } else if (x == "Virginia") {
+              y <- 51
+        } else {
+                y <- statecodes$STATE[grep(x, statecodes$STATE_NAME)]
+        }
+        y
+}
+data$STATEFP <- sapply(data$State, recode)
+```
+Format county values for mapping
+```{r}
+data$county <- as.character(data$county)
+data$NAME <- sapply(data$county, simpleCap)
+data$NAME <- gsub("0", NA, data$NAME)
+```
+Remove unnecessary columns again and remove NAs
+```{r}
+data <- data[,c(4,6:9)]
+data <- na.omit(data)
+```
+Group and summarize data by state and county, then remove counties with less than 10 patients.
+```{r}
+datagrp <- group_by(data, STATEFP, NAME)
+
+#Revision Rate Map Data
+revMapDF <- summarize(datagrp, Revision_Rate = mean(RevLogical), Count = n())
+rmSmallSamp1 <- function() {
+        for (i in 1:nrow(revMapDF)) {
+                if (revMapDF$Count[i] < 10) {
+                        revMapDF$Revision_Rate[i] <- NA
+                } else {next}
+        }
+        revMapDF
+}
+revMapDF <- rmSmallSamp1() 
+revMapDF$NAME <- as.factor(revMapDF$NAME)
+revMapDF$STATEFP <- as.factor(revMapDF$STATEFP)
+
+#MED/Month Map Data - Might want to do median instead of mean
+MEDMapDF <- summarize(datagrp, Mean_MED_per_Month = mean(MEDperMonth), Count = n())
+rmSmallSamp2 <- function() {
+        for (i in 1:nrow(MEDMapDF)) {
+                if (MEDMapDF$Count[i] < 10) {
+                        MEDMapDF$Mean_MED_per_Month[i] <- NA
+                } else {next}
+        }
+        MEDMapDF
+}
+MEDMapDF <- rmSmallSamp2() 
+MEDMapDF$STATEFP <- as.factor(MEDMapDF$STATEFP)
+MEDMapDF$NAME <- as.factor(MEDMapDF$NAME)
+
+#Chronic Opiates Map Data
+chronicMapDF <- summarize(datagrp, Chronic_Use_Rate = mean(chronic), Count = n())
+rmSmallSamp3 <- function() {
+        for (i in 1:nrow(chronicMapDF)) {
+                if (chronicMapDF$Count[i] < 10) {
+                        chronicMapDF$Chronic_Use_Rate[i] <- NA
+                } else {next}
+        }
+        chronicMapDF
+}
+chronicMapDF <- rmSmallSamp3() 
+chronicMapDF$STATEFP <- as.factor(chronicMapDF$STATEFP)
+chronicMapDF$NAME <- as.factor(chronicMapDF$NAME)
+```
+Load map data and combine with revision data
+```{r}
+counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
+counties@data$id <- rownames(counties@data)
+counties@data <- join(counties@data, revMapDF, by=c("STATEFP", "NAME"))
+counties.df <- fortify(counties)
+counties.df <- join(counties.df, counties@data, by="id")
+counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
+```
+Create Revision Map
+```{r}
+j <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Revision_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "Greens", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "TKA Revision Rates", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+
+#PNG
+ppi <- 300
+png("TKA Revision.png", width = 6*ppi, height = 6*ppi, res = ppi)
+j
+dev.off()
+
+#PDF
+pdf("TKA Revision.pdf")
+j
+dev.off()
+```
+Reload map data and combine with MED/Month data
+```{r}
+counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
+counties@data$id <- rownames(counties@data)
+counties@data <- join(counties@data, MEDMapDF, by=c("STATEFP", "NAME"))
+counties.df <- fortify(counties)
+counties.df <- join(counties.df, counties@data, by="id")
+counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
+```
+Create MED/Month Map
+```{r}
+p <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Mean_MED_per_Month), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "Greens", breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Mean Morphine Equivalents per Month per Patient", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+
+#PNG
+ppi <- 300
+png("MED.png", width = 6*ppi, height = 6*ppi, res = ppi)
+p
+dev.off()
+
+#PDF
+pdf("MED.pdf")
+p
+dev.off()
+```
+
+Reload map data and combine with chronic opiate use data
+```{r}
+counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
+counties@data$id <- rownames(counties@data)
+counties@data <- join(counties@data, chronicMapDF, by=c("STATEFP", "NAME"))
+counties.df <- fortify(counties)
+counties.df <- join(counties.df, counties@data, by="id")
+counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
+```
+
+Create Chronic Opiate Use Rate Map
+```{r}
+b <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Chronic_Use_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "Greens", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Chronic Opiate Use Rate", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+
+#PNG
+ppi <- 300
+png("Chronic.png", width = 6*ppi, height = 6*ppi, res = ppi)
+b
+dev.off()
+
+#PDF
+pdf("Chronic.pdf")
+b
+dev.off()
+```
