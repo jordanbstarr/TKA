@@ -315,7 +315,7 @@ CI #AUC 95% CI
 testing <- mutate(testing, risk = predict(glmfit, testing, type = "prob")[,2])
 testing$decile <- cut(testing$risk, breaks = 10, labels = F)
 testinggrp <- group_by(testing, decile)
-z <- summarise(testinggrp, mean_risk = mean(risk), pred_rev = round(mean_risk*n()), obs_rev = sum(ifelse(RevLogical == "yes",1,0)))
+z <- summarise(testinggrp, mean_risk = mean(risk), pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)))
 sqrt(mean((z[,4]-z[,3])^2)) 
 p <- plot(unlist(z[,3]),unlist(z[,4]))
 p
@@ -343,7 +343,7 @@ testing <- testing[,c(-13,-14)] #to reset testing data
 testing <- mutate(testing, risk = predict(fit, testing, type = "prob")[,2])
 testing$decile <- cut(testing$risk, breaks = 10, labels = F)
 testinggrp <- group_by(testing, decile)
-z <- summarise(testinggrp, mean_risk = mean(risk), pred_rev = round(mean_risk*n()), obs_rev = sum(ifelse(RevLogical == "yes",1,0)))
+z <- summarise(testinggrp, mean_risk = mean(risk), pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)))
 z
 sqrt(mean((z[,4]-z[,3])^2)) 
 p <- plot(unlist(z[,3]),unlist(z[,4]))

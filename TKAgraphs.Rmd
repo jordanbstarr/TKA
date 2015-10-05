@@ -1,0 +1,63 @@
+library("ggplot2")
+library("dplyr")
+data <- read.csv("WorkDf5.csv", sep=";")
+data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
+data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
+datagrp <- group_by(data, TKAYear)
+
+#Graph: MEDperMonth by year 
+meanMEDxYear <- summarise(datagrp, Mean_MED = mean(MEDperMonth, na.rm=T))
+g <- ggplot(meanMEDxYear, aes(TKAYear, Mean_MED)) + geom_point() + geom_smooth(method = "lm", se = F) + labs(title = "Mean Preoperative Morphine Equivalents \n per Month by Year", x = "Year", y = "Mean Morphine Equivalents per Month")
+
+medianMEDxYear <- summarise(datagrp, Median_MED = median(MEDperMonth, na.rm=T))
+p <- ggplot(medianMEDxYear, aes(TKAYear, Median_MED)) + geom_point() + geom_smooth(method = "lm", se = F) + labs(title = "Median Preoperative Morphine Equivalents \n per Month by Year", x = "Year", y = "Median Morphine Equivalents per Month")
+
+#Graph: TypeBefore by year
+meanTBxYear <- summarise(datagrp, Mean_Types = mean(TypeBefore, na.rm=T))
+a <- ggplot(meanTBxYear, aes(TKAYear, Mean_Types)) + geom_point() + geom_smooth(method = "lm", se = F) + labs(title = "Mean Number of Unique Opiates Prescribed \n Preoperatively by Year", x = "Year", y = "Mean Unique Opiates Prescribed")
+
+medianTBxYear <- summarise(datagrp, Median_Types = median(TypeBefore, na.rm=T))
+b <- ggplot(medianTBxYear, aes(TKAYear, Median_Types)) + geom_point() + geom_smooth(method = "lm", se = F) + labs(title = "Median Number of Unique Opiates Prescribed \n Preoperatively by Year", x = "Year", y = "Median Unique Opiates Prescribed")
+
+#Create graphs
+ppi <- 300
+png("MeanMEDxYear.png", width = 6*ppi, height = 6*ppi, res = ppi)
+g
+dev.off()
+pdf("MeanMEDxYear.pdf")
+g
+dev.off()
+png("MedianMEDxYear.png", width = 6*ppi, height = 6*ppi, res = ppi)
+p
+dev.off()
+pdf("MedianMEDxYear.pdf")
+p
+dev.off()
+png("MeanTypeBeforexYear.png", width = 6*ppi, height = 6*ppi, res = ppi)
+a
+dev.off()
+pdf("MeanTypeBeforexYear.pdf")
+a
+dev.off()
+png("MedianTypeBeforexYear.png", width = 6*ppi, height = 6*ppi, res = ppi)
+b
+dev.off()
+pdf("MedianTypeBeforexYear.pdf")
+b
+dev.off()
+
+#Age histogram, grouped by chronic opioid use
+data$chronic <- as.factor(data$chronic)
+data <- rename(data, Chronic = chronic)
+data$Chronic <- ifelse(data$Chronic == 1, "Yes", "No")
+z <- ggplot(data, aes(x=Age, fill = Chronic)) + geom_histogram() + labs(title = "Age Distribution Grouped by Chronic \n Opiate Use", x = "Age", y = "Count")
+#Save
+ppi <- 300
+png("AgexChronic.png", width = 6*ppi, height = 6*ppi, res = ppi)
+z
+dev.off()
+pdf("AgexChronic.pdf")
+z
+dev.off()
+
+

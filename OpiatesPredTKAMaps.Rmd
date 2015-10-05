@@ -26,7 +26,7 @@ statecodes$STATE <- formatC(statecodes$STATE, width = 2, flag = '0')
 
 Remove unnecessary columns
 ```{r}
-data <- data[,c(9,10,19,39,47)]
+data <- data[,c(9,10,19,20,39,47)]
 ```
 Create MEDperMonth variable and remove extreme outliers
 ```{r}
@@ -83,7 +83,7 @@ data$NAME <- gsub("0", NA, data$NAME)
 ```
 Remove unnecessary columns again and remove NAs
 ```{r}
-data <- data[,c(4,6:9)]
+data <- data[,c(4,5,7:10)]
 data <- na.omit(data)
 ```
 Group and summarize data by state and county, then remove counties with less than 10 patients.
@@ -104,12 +104,12 @@ revMapDF <- rmSmallSamp1()
 revMapDF$NAME <- as.factor(revMapDF$NAME)
 revMapDF$STATEFP <- as.factor(revMapDF$STATEFP)
 
-#MED/Month Map Data - Might want to do median instead of mean
-MEDMapDF <- summarize(datagrp, Mean_MED_per_Month = mean(MEDperMonth), Count = n())
+#MED/Month Map Data - 
+MEDMapDF <- summarize(datagrp, Median_MED_per_Month = median(MEDperMonth), Count = n())
 rmSmallSamp2 <- function() {
         for (i in 1:nrow(MEDMapDF)) {
                 if (MEDMapDF$Count[i] < 10) {
-                        MEDMapDF$Mean_MED_per_Month[i] <- NA
+                        MEDMapDF$Median_MED_per_Month[i] <- NA
                 } else {next}
         }
         MEDMapDF
@@ -131,6 +131,20 @@ rmSmallSamp3 <- function() {
 chronicMapDF <- rmSmallSamp3() 
 chronicMapDF$STATEFP <- as.factor(chronicMapDF$STATEFP)
 chronicMapDF$NAME <- as.factor(chronicMapDF$NAME)
+
+#TypeBefore Map Data
+typesMapDF <- summarize(datagrp, Type_Before = mean(TypeBefore), Count = n())
+rmSmallSamp4 <- function() {
+        for (i in 1:nrow(typesMapDF)) {
+                if (typesMapDF$Count[i] < 10) {
+                        typesMapDF$Type_Before[i] <- NA
+                } else {next}
+        }
+        typesMapDF
+}
+typesMapDF <- rmSmallSamp4() 
+typesMapDF$STATEFP <- as.factor(typesMapDF$STATEFP)
+typesMapDF$NAME <- as.factor(typesMapDF$NAME)
 ```
 Load map data and combine with revision data
 ```{r}
@@ -143,7 +157,7 @@ counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & c
 ```
 Create Revision Map
 ```{r}
-j <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Revision_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "Greens", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "TKA Revision Rates", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+j <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Revision_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "TKA Revision Rate by County \n Number of Revisions/ All TKAs", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
 
 #PNG
 ppi <- 300
@@ -167,7 +181,7 @@ counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & c
 ```
 Create MED/Month Map
 ```{r}
-p <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Mean_MED_per_Month), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "Greens", breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Mean Morphine Equivalents per Month per Patient", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+p <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Median_MED_per_Month), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Median Preoperative Morphine Equivalent \n Usage per Month by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
 
 #PNG
 ppi <- 300
@@ -193,7 +207,7 @@ counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & c
 
 Create Chronic Opiate Use Rate Map
 ```{r}
-b <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Chronic_Use_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "Greens", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Chronic Opiate Use Rate", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+b <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Chronic_Use_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Percent of Patients Using Opiates Chronically \n Preoperatively by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
 
 #PNG
 ppi <- 300
@@ -204,5 +218,31 @@ dev.off()
 #PDF
 pdf("Chronic.pdf")
 b
+dev.off()
+```
+
+Reload map data and combine with typeBefore data
+```{r}
+counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
+counties@data$id <- rownames(counties@data)
+counties@data <- join(counties@data, typesMapDF, by=c("STATEFP", "NAME"))
+counties.df <- fortify(counties)
+counties.df <- join(counties.df, counties@data, by="id")
+counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
+```
+
+Create typeBefore Map
+```{r}
+c <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Type_Before), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Mean Number of Unique Opiates Prescribed \n Preoperatively by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+
+#PNG
+ppi <- 300
+png("TypeBefore.png", width = 6*ppi, height = 6*ppi, res = ppi)
+c
+dev.off()
+
+#PDF
+pdf("TypeBefore.pdf")
+c
 dev.off()
 ```
