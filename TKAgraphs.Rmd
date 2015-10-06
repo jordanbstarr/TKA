@@ -60,4 +60,21 @@ pdf("AgexChronic.pdf")
 z
 dev.off()
 
-
+#Revision free survival curve separated by chronic opioid use with CIs and p-value
+library("survival")
+library("rms")
+data$RevLogical <- as.factor(data$RevLogical)
+data$chronic <- ifelse(data$chronic == 1, "Chronic", "Not Chronic")
+data$chronic <- as.factor(data$chronic)
+data$t2rev <- ifelse(data$t2rev < 0, NA, data$t2rev)
+data2 <- na.omit(data[,c(39,48,49)])
+objNpsurv <- npsurv(formula = Surv(t2rev, RevLogical == 1) ~ chronic, data = data2)
+ppi <- 300
+png("Survival.png", width = 6*ppi, height = 6*ppi, res = ppi)
+survplot(objNpsurv, ylim = c(.9,1), xlab = "Days", ylab = "Percent of TKAs Unrevised", conf.type="log-log", levels.only=T, col.fill =c(6,5))
+title(main = "K-M Curve of TKA Revision \n by Opiate Use")
+dev.off()
+pdf("Survival.pdf")
+survplot(objNpsurv, ylim = c(.9,1), xlab = "Days", ylab = "Percent of TKAs Unrevised", conf.type="log-log", levels.only=T, col.fill =c(6,5))
+title(main = "K-M Curve of TKA Revision \n by Opiate Use")
+dev.off()
