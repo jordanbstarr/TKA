@@ -11,6 +11,8 @@ library("dplyr")
 library("caret")
 library("ROCR")
 library("scales")
+library("randomForest")
+set.seed(12)
 alldata <- read.csv("WorkDf5.csv", sep=";")
 ```
 
@@ -87,8 +89,19 @@ summary(glmfitall)
 
 These are the odds ratios and associated 95% confidence intervals.
 ```{r cache=TRUE}
-exp(coef(glmfitall)) # Odds ratios
-exp(confint(glmfitall)) # Confidence intervals
+a <- exp(coef(glmfitall)) # Odds ratios
+b <- exp(confint(glmfitall)) # Confidence intervals
+```
+
+Forest Plot:
+```{r}
+tmp<-data.frame(cbind(exp(coef(glmfitall)), exp(confint(glmfitall))))
+odds<-tmp[-1,]
+names(odds)<-c('OR', 'Lower', 'Upper')
+odds$vars<-row.names(odds)
+     
+g <- ggplot(odds, aes(y= OR, x = reorder(vars, OR))) + geom_point() + geom_errorbar(aes(ymin=Lower, ymax=Upper), width=.2) + geom_hline(yintercept = 1, linetype=2) + coord_flip() + labs(title = "Title", x = "Variables", y = "OR") + theme_bw() + scale_y_continuous(breaks=c(0,.5,1,1.5,2,2.5,3))
+g
 ```
 
 While the odds ratio for opiate use appears small, this is for one morphine equivalent per month. To add context:
@@ -98,12 +111,20 @@ u <- subset(completeData, MEDperMonth == 0)
 percent(length(u$RevLogical[u$RevLogical == "yes"])/length(u$RevLogical))
 
 # For a hypothetical patient on oxycodone 5 mg q6h PRN (assuming an oxycodone to morphine ratio of 2:3 in a 31-day month), they would have the following number of morphine equivalents per month:
-5*1.5*4*31
+5*1.5*4*365/12
 
 # Using our model, this patient's relative risk of TKA revision increases by the following amount:
-percent((2.506e-05*930)/ (length(u$RevLogical[u$RevLogical == "yes"])/length(u$RevLogical)))
+percent((2.506e-05*912.5)/ (length(u$RevLogical[u$RevLogical == "yes"])/length(u$RevLogical)))
 ```
 *Despite this being a retrospective analysis, we are interpretting our results as probabilities given the low frequency of TKA revision.*
+
+#Graph of above
+```{r}
+x <- 1:100
+y <- 100*2.506e-05*(365/12)*x/0.03920426
+g <- qplot(x, y, main="Increase in Relative Risk of Revision \n by Daily Morphine Equivalent Dose", xlab="Daily Morphine Equivalent Dose", ylab="Percent Relative Risk Increase", geom="line")
+g
+```
 
 ###Stepwise linear regression model based on variable importance:
 ```{r cache=TRUE}
@@ -124,7 +145,7 @@ exp(confint(glmfit6)) # Confidence intervals
 ```
 Using the same methods as above, the following relative risk increase for a hypothetical patient using oxycodone can be calculated from this slightly simpler model.
 ```{r cache=TRUE}
-percent((2.549e-05*930)/ (length(u$RevLogical[u$RevLogical == "yes"])/length(u$RevLogical)))
+percent((2.549e-05*912.5)/ (length(u$RevLogical[u$RevLogical == "yes"])/length(u$RevLogical)))
 ```
 
 ### Machine Learning Models
@@ -145,6 +166,32 @@ ctrl <- trainControl(method="cv", number=10, classProbs = TRUE)
 glmfit <- train(RevLogical ~ ., data = training, method="glm", trControl = ctrl)
 pred1 <- predict(glmfit, testing, type="prob")
 x <- prediction(pred1[,2],testing$RevLogical)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+plot(y)
+abline(a=0, b= 1)
+z <- performance(x, measure = "auc")
+p <- unlist(z@y.values)
+n <- nrow(training)
+s = sqrt(p*(1-p)/n)
+CI <- c(p-1.96*s, p+1.96*s)
+p #AUC
+CI #AUC 95% CI
+```
+
+Step-wise glm (AUC = 0.617)
+```
+#glmfit order: Age, CKD, Diabetes, MEDperMonth, Tobbaco, BMI, PTSD, gender, HTN, CHF, OSA
+glmfit1 <- glm(RevLogical ~ Age, data = training, family = "binomial")
+glmfit2 <- glm(RevLogical ~ Age + CKD, data = training, family = "binomial")
+glmfit3 <- glm(RevLogical ~ Age + CKD + Diabetes, data = training, family = "binomial")
+glmfit4 <- glm(RevLogical ~ Age + CKD + Diabetes + MEDperMonth, data = training, family = "binomial")
+glmfit5 <- glm(RevLogical ~ Age + CKD + Diabetes + MEDperMonth + Tobbaco, data = training, family = "binomial")
+anova(glmfit1, glmfit2, glmfit3, glmfit4, glmfit5, test = "Chisq")
+#top 3 sig 
+ctrl <- trainControl(method="cv", number=10, classProbs = TRUE)
+glmcomb <- train(RevLogical ~ Age + CKD + Diabetes, data = training, method="glm", trControl = ctrl)
+pred <- predict(glmcomb, testing, type="prob")
+x <- prediction(pred[,2],testing$RevLogical)
 y <- performance(x, measure = "tpr", x.measure = "fpr")
 plot(y)
 abline(a=0, b= 1)
@@ -194,7 +241,26 @@ CI #AUC 95% CI
 Linear Discriminant Analysis (AUC = 0.627)
 ```{}
 ldafit <- train(RevLogical ~ ., data = training, method="lda")
-pred3 <- predict(ldafit, testing, type="prob")
+pred <- predict(ldafit, testing, type="prob")
+x <- prediction(pred[,2],testing$RevLogical)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+plot(y)
+abline(a=0, b= 1)
+z <- performance(x, measure = "auc")
+p <- unlist(z@y.values)
+n <- nrow(training)
+s = sqrt(p*(1-p)/n)
+CI <- c(p-1.96*s, p+1.96*s)
+p #AUC
+CI #AUC 95% CI
+```
+
+Glmnet with 10-fold cross validation (AUC = 0.639)
+```{}
+ctrl <- trainControl(method="cv", number=10, classProbs = TRUE)
+glmnetfit <- train(RevLogical ~ ., data = training, method="glmnet", trControl = ctrl)
+coef(glmnetfit$finalModel, s = glmnetfit$bestTune[,2]) #gives used coefficients (all but CHF)
+pred3 <- predict(glmnetfit, testing, type = "prob")
 x <- prediction(pred3[,2],testing$RevLogical)
 y <- performance(x, measure = "tpr", x.measure = "fpr")
 plot(y)
@@ -225,10 +291,9 @@ p #AUC
 CI #AUC 95% CI
 ```
 
-Random Forrest with 10-fold cross validation (AUC = ?)
+Random Forrest (AUC = 0.576)
 ```{}
-ctrl <- trainControl(method="cv", number=10)
-rffitall <- train(RevLogical ~ ., data = training, method="rf", prox=T, trControl = ctrl)
+rffitall <- randomForest(RevLogical ~ ., data=training, importance=TRUE)
 pred5 <- predict(rffitall, testing, type="prob")
 x <- prediction(pred5[,2],testing$RevLogical)
 y <- performance(x, measure = "tpr", x.measure = "fpr")
@@ -243,55 +308,13 @@ p #AUC
 CI #AUC 95% CI
 ```
 
-Random Forrest with 10-fold Cross Validation After Recursive Feature Elimination (AUC = ?)
-```{}
-control <- rfeControl(functions=rfFuncs, method="cv", number=10)
-results <- rfe(training[,c(1:9,11)], training[,10], sizes=c(1:9,11), rfeControl=control)
-print(results)
-predictors(results)
-plot(results, type=c("g", "o"))        
-ctrl <- trainControl(method="cv", number=10)
-rffitrfe <- train(training[,#columns RFE suggests], training$RevLogical, method="rf", prox=T, trControl = ctrl)
-pred5 <- predict(rffitrfe, testing, type="prob")
-x <- prediction(pred5[,2],testing$RevLogical)
-y <- performance(x, measure = "tpr", x.measure = "fpr")
-plot(y)
-abline(a=0, b= 1)
-z <- performance(x, measure = "auc")
-p <- unlist(z@y.values)
-n <- nrow(training)
-s = sqrt(p*(1-p)/n)
-CI <- c(p-1.96*s, p+1.96*s)
-p #AUC
-CI #AUC 95% CI
-```
-
-Glmnet with 10-fold cross validation (AUC = 0.639)
-```{}
-ctrl <- trainControl(method="cv", number=10, classProbs = TRUE)
-lassofit <- train(RevLogical ~ ., data = training, method="glmnet", trControl = ctrl)
-coef(lassofit$finalModel, s = lassofit$bestTune[,2]) #gives used coefficients (all but HTN)
-pred6 <- predict(lassofit, testing, type = "prob")
-x <- prediction(pred6[,2],testing$RevLogical)
-y <- performance(x, measure = "tpr", x.measure = "fpr")
-plot(y)
-abline(a=0, b= 1)
-z <- performance(x, measure = "auc")
-p <- unlist(z@y.values)
-n <- nrow(training)
-s = sqrt(p*(1-p)/n)
-CI <- c(p-1.96*s, p+1.96*s)
-p #AUC
-CI #AUC 95% CI
-```
-
-Combined Model (AUC (1,2,4) = 0.631)
+Combined Model (AUC = 0.635)
 ```{}
 predDF <- data.frame(pred1 = pred1[,2], pred2 = pred2[,2], pred3 = pred3[,2], pred4 = pred4[,2], pred5 = pred5[,2], RevLogical = testing$RevLogical)
 combModFit <- train(RevLogical ~ ., data = predDF, method = "gam")
 pred1V <- predict(glmfit, validation, type = "prob")
 pred2V <- predict(gbmfit, validation, type = "prob")
-pred3V <- predict(ldafit, validation, type = "prob")
+pred3V <- predict(glmnetfit, validation, type = "prob")
 pred4V <- predict(nbfit, validation, type = "prob")
 pred5V <- predict(rffitall, validation, type = "prob")
 predVDF <- data.frame(pred1 = pred1V[,2], pred2 = pred2V[,2], pred3 = pred3V[,2], pred4 = pred4V[,2], pred5 = pred5V[,2])
@@ -310,43 +333,171 @@ CI #AUC 95% CI
 ```
 
 #Paxton TKA prediction model RMSE = 14.44
+glm (11) RMSE = 3.66
+(can't use) glmfit6 (6) RMSE = 5.12, (5) = 4.05, (4) = 2.88, (3) = 2.77
+glmfit3 (3) RMSE = 2.77
+glmnet (10) RMSE = 4.25
+rpart (11) RMSE = 0 (1 decile)
+nb (11) RMSE = 110.39
+rf (11) RMSE = 48.97
+gbm (11) RMSE = 3.10, 2.55, 9.22
+        gbm variable importance
 
-#After making glmfit
-testing <- mutate(testing, risk = predict(glmfit, testing, type = "prob")[,2])
-testing$decile <- cut(testing$risk, breaks = 10, labels = F)
-testinggrp <- group_by(testing, decile)
-z <- summarise(testinggrp, mean_risk = mean(risk), pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)))
-sqrt(mean((z[,4]-z[,3])^2)) 
-p <- plot(unlist(z[,3]),unlist(z[,4]))
-p
-abline(0,1)
-#10 breaks RMSE = 3.59
+            Overall
+Age         100.000
+MEDperMonth  26.374
+Diabetes1     7.427
+CKD1          4.613
+BMI           2.939
+PTSD1         1.702
+genderM       0.000
+CHF1          0.000
+HTN1          0.000
+OSA1          0.000
+Tobbaco1      0.000
 
-#Function to optimize RMSE after risk column created
-best <- function() {
-        RMSEbyBreak <- data.frame(Breaks = numeric(),RMSE = numeric())
-        for (i in 2:10) {
-                testing$decile <- cut(testing$risk, breaks = i, labels = F)
-                testinggrp <- group_by(testing, decile)
-                z <- summarise(testinggrp, mean_risk = mean(risk), pred_rev = round(mean_risk*n()), obs_rev = sum(ifelse(RevLogical == "yes",1,0)))
-                RMSE <- sqrt(mean((z[,4]-z[,3])^2))
-                RMSEbyBreak[i,2] <- RMSE
-                RMSEbyBreak[i,1] <- i
-        }
-        RMSEbyBreak
-}
+gbm (7) RMSE = 5.53
+gbm variable importance
+
+            Overall
+Age         100.000
+MEDperMonth  19.501
+CKD1          9.405
+Diabetes1     5.615
+BMI           2.308
+genderM       0.000
+PTSD1         0.000
+
+gbm (6) RMSE = 5.25
+gbm variable importance
+
+            Overall
+Age         100.000
+MEDperMonth  25.748
+Diabetes1     3.661
+BMI           3.580
+CKD1          2.664
+PTSD1         0.000
+
+gbm (5) RMSE = 5.54
+gbm variable importance
+
+            Overall
+Age         100.000
+MEDperMonth  23.341
+CKD1          4.761
+Diabetes1     2.720
+BMI           0.000
+
+gbm (4) RMSE = 5.07
+gbm variable importance
+
+            Overall
+Age         100.000
+MEDperMonth  22.633
+Diabetes1     1.123
+CKD1          0.000
+
+gbm (3) RMSE = 5.18
+gbm variable importance
+
+            Overall
+MEDperMonth  100.00
+Age           91.58
+Diabetes1      0.00
+
+gbm (2) RMSE = 5.45
+gbm variable importance
+
+            Overall
+Age             100
+MEDperMonth       0
+
+gbm (1) RMSE = 5.81
+gbm (8) (7 + HTN) RMSE = 11.49
+gbm (9) (8 + OSA) RMSE = 5.23
+gbm (10) RMSE = 6.93
 
 ```{}
 ctrl <- trainControl(method="cv", number=10, classProbs = TRUE)
-fit <- train(RevLogical ~ Age + CKD + Diabetes + MEDperMonth, data = training, method="gbm", trControl = ctrl)
+fit <- train(RevLogical ~ Age + CKD + Diabetes + MEDperMonth + BMI + Tobbaco, data = training, method="glm", trControl = ctrl)
 testing <- testing[,c(-13,-14)] #to reset testing data 
 testing <- mutate(testing, risk = predict(fit, testing, type = "prob")[,2])
 testing$decile <- cut(testing$risk, breaks = 10, labels = F)
 testinggrp <- group_by(testing, decile)
-z <- summarise(testinggrp, mean_risk = mean(risk), pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)))
+z <- summarise(testinggrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,4]-z[,3])^2)) 
-p <- plot(unlist(z[,3]),unlist(z[,4]))
+sqrt(mean((z[,3]-z[,2])^2)) 
+p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
 ```
+
+#Validation (glmfit3)
+validation <- mutate(validation, risk = predict(glmcomb, validation, type = "prob")[,2])
+validation$decile <- cut(validation$risk, breaks = 10, labels = F)
+validationgrp <- group_by(validation, decile)
+z <- summarise(validationgrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
+z
+sqrt(mean((z[,3]-z[,2])^2)) 
+p <- plot(unlist(z[,2]),unlist(z[,3]))
+p
+abline(0,1)
+
+#Results
+  decile pred_rev obs_rev min_risk max_risk
+1      1       34      38    0.010    0.034
+2      2      112     111    0.034    0.057
+3      3       89      87    0.058    0.080
+4      4       36      37    0.082    0.104
+5      5       14      13    0.105    0.125
+6      6        6       5    0.128    0.150
+7      7        2       3    0.151    0.167
+8      8        0       0    0.175    0.187
+9     10        0       0    0.235    0.244
+> sqrt(mean((z[,3]-z[,2])^2)) 
+[1] 1.666667
+
+Coefficients:
+              Estimate Std. Error z value Pr(>|z|)    
+(Intercept)  0.240343   0.239071   1.005  0.31474    
+Age         -0.052698   0.003942 -13.368  < 2e-16 ***
+CKD1         0.458596   0.115911   3.956 7.61e-05 ***
+Diabetes1    0.236863   0.073467   3.224  0.00126 ** 
+
+#Final Function
+RevisionRisk <- function(Age, CKD, DM) {
+        df <- data.frame(Age = as.numeric(Age), CKD = as.factor(CKD), Diabetes = as.factor(DM))
+        p <- predict(glmcomb, df, type = "prob")
+        percent(p[,2])
+}
+
+## Graphs
+#Reliability curve for glmcomb
+g <- ggplot(z, aes(unlist(z[,2]),unlist(z[,3]))) + geom_point() + labs(title = "Reliability Plot of TKA Revision Prediction Model", x = "Predicted Revisions", y = "Observed Revisions") + geom_abline(intercept = 0, slope = 1) + coord_cartesian(xlim = c(0,115), ylim = c(0,115)) + annotate("text", x = 30, y = 75, label = "RMSE = 1.67")
+ppi <- 300
+png("Reliability.png", width = 6*ppi, height = 6*ppi, res = ppi)
+g
+dev.off()
+pdf("Reliability.pdf")
+g
+dev.off()
+
+#All AUCs combined: pred1-5, pred (glmcomb), predrp, combPredV 
+library("RColorBrewer")
+allpreds <- list(pred1[,2],pred2[,2],pred3[,2],pred4[,2],pred5[,2],pred[,2],predrp[,2],combPredV[,1])
+alllabs <- list(testing$RevLogical,testing$RevLogical,testing$RevLogical,testing$RevLogical,testing$RevLogical,testing$RevLogical,testing$RevLogical,validation$RevLogical)
+x <- prediction(allpreds,alllabs)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+c <- as.list(brewer.pal(8,"Set1"))
+ppi <- 300
+png("ROC.png", width = 6*ppi, height = 6*ppi, res = ppi)
+p <- plot(y, main="ROC of all TKA Revision Models", xlab="False Positive Rate", ylab="True Positive Rate", col=c, lwd=2)
+abline(a=0, b= 1)
+legend("topleft", legend = c("Generalized Linear (3 Variables)", "Generalized Linear","Gradient Boosting","Lasso","Naive Bayes", "Random Forest", "Models 2-6 Composite", "Recursive Partitioning and Regression Trees"),lty=1, lwd=3, col=c(c[[6]],c[[1]],c[[2]],c[[3]],c[[4]],c[[5]],c[[8]],c[[7]]), cex=.7, bty="n", y.intersp=.75, title="Models", title.adj = .2, seg.len=1.5)
+dev.off()
+pdf("ROC.pdf")
+p <- plot(y, main="ROC of all TKA Revision Models", xlab="False Positive Rate", ylab="True Positive Rate", col=c, lwd=2)
+abline(a=0, b= 1)
+legend("topleft", legend = c("Generalized Linear (3 Variables)", "Generalized Linear","Gradient Boosting","Lasso","Naive Bayes", "Random Forest", "Models 2-6 Composite", "Recursive Partitioning and Regression Trees"),lty=1, lwd=3, col=c(c[[6]],c[[1]],c[[2]],c[[3]],c[[4]],c[[5]],c[[8]],c[[7]]), cex=.8, bty="n", y.intersp=.75, title="Models", title.adj = .2, seg.len=1.5)
+dev.off()
