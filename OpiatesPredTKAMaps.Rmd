@@ -4,8 +4,9 @@ author: "Jordan Starr"
 date: "September 21, 2015"
 output: html_document
 ---
-##Load Packages & Data
+##Load Packages & Data for Project Maps
 ```{r}
+knitr::opts_chunk$set(cache=T)
 library("ggplot2")
 library("ggmap")
 library("plyr")
@@ -104,7 +105,7 @@ revMapDF <- rmSmallSamp1()
 revMapDF$NAME <- as.factor(revMapDF$NAME)
 revMapDF$STATEFP <- as.factor(revMapDF$STATEFP)
 
-#MED/Month Map Data - 
+#MED/Month Map Data 
 MEDMapDF <- summarize(datagrp, Median_MED_per_Month = median(MEDperMonth), Count = n())
 rmSmallSamp2 <- function() {
         for (i in 1:nrow(MEDMapDF)) {
