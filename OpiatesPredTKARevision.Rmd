@@ -199,6 +199,8 @@ CI #AUC 95% CI
 Boosting
 ```{r}
 gbmfit <- train(RevLogical ~ ., data = training, method="gbm", verbose = F)
+detach("package:dplyr", unload=T) # Need to reload dplyr after gbm to avoid errors
+library(dplyr)
 pred4 <- predict(gbmfit, testing, type="prob")
 x <- prediction(pred4[,2],testing$RevLogical)
 y <- performance(x, measure = "tpr", x.measure = "fpr")
@@ -302,16 +304,16 @@ nbfit (11) AUROC = 0.591, 0.584-0.599
 rffit (11) AUROC = 0.572, 0.564-0.579
 combModFit (11) AUROC = 0.631, 0.624-0.638
 
-## Calculate RMSE of probability plot for all 8 models:
+## Calculate Brier Score for all 8 models:
 
 glmfit
 ```{r}
 testing <- mutate(testing, risk = predict(glmfit, testing, type = "prob")[,2])
-testing$decile <- cut(testing$risk, breaks = 10, labels = F)
+testing$decile <- cut(testing$risk, breaks = c(unique(quantile(testing$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 testinggrp <- group_by(testing, decile)
 z <- summarise(testinggrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,3]-z[,2])^2)) 
+sum((z[,2]-z[,3])^2)/nrow(z) #Brier Score
 p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
@@ -321,11 +323,11 @@ glmfit3
 ```{r}
 testing <- testing[,c(-13,-14)] #to reset testing data 
 testing <- mutate(testing, risk = predict(glmfit3, testing, type = "prob")[,2])
-testing$decile <- cut(testing$risk, breaks = 10, labels = F)
+testing$decile <- cut(testing$risk, breaks = c(unique(quantile(testing$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 testinggrp <- group_by(testing, decile)
 z <- summarise(testinggrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,3]-z[,2])^2)) 
+sum((z[,2]-z[,3])^2)/nrow(z) #Brier Score
 p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
@@ -335,25 +337,18 @@ rpartfit
 ```{r}
 testing <- testing[,c(-13,-14)] #to reset testing data 
 testing <- mutate(testing, risk = predict(rpartfit, testing, type = "prob")[,2])
-testing$decile <- cut(testing$risk, breaks = 10, labels = F)
-testinggrp <- group_by(testing, decile)
-z <- summarise(testinggrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
-z
-sqrt(mean((z[,3]-z[,2])^2)) 
-p <- plot(unlist(z[,2]),unlist(z[,3]))
-p
-abline(0,1)
+testing$decile <- cut(testing$risk, breaks = c(unique(quantile(testing$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 ```
 
 gbmfit
 ```{r}
 testing <- testing[,c(-13,-14)] #to reset testing data 
 testing <- mutate(testing, risk = predict(gbmfit, testing, type = "prob")[,2])
-testing$decile <- cut(testing$risk, breaks = 10, labels = F)
+testing$decile <- cut(testing$risk, breaks = c(unique(quantile(testing$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 testinggrp <- group_by(testing, decile)
 z <- summarise(testinggrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,3]-z[,2])^2)) 
+sum((z[,2]-z[,3])^2)/nrow(z) #Brier Score
 p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
@@ -363,11 +358,11 @@ glmnetfit
 ```{r}
 testing <- testing[,c(-13,-14)] #to reset testing data 
 testing <- mutate(testing, risk = predict(glmnetfit, testing, type = "prob")[,2])
-testing$decile <- cut(testing$risk, breaks = 10, labels = F)
+testing$decile <- cut(testing$risk, breaks = c(unique(quantile(testing$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 testinggrp <- group_by(testing, decile)
 z <- summarise(testinggrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,3]-z[,2])^2)) 
+sum((z[,2]-z[,3])^2)/nrow(z) #Brier Score
 p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
@@ -377,11 +372,11 @@ nbfit
 ```{r}
 testing <- testing[,c(-13,-14)] #to reset testing data 
 testing <- mutate(testing, risk = predict(nbfit, testing, type = "prob")[,2])
-testing$decile <- cut(testing$risk, breaks = 10, labels = F)
+testing$decile <- cut(testing$risk, breaks = c(unique(quantile(testing$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 testinggrp <- group_by(testing, decile)
 z <- summarise(testinggrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,3]-z[,2])^2)) 
+sum((z[,2]-z[,3])^2)/nrow(z) #Brier Score
 p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
@@ -391,11 +386,11 @@ rffit
 ```{r}
 testing <- testing[,c(-13,-14)] #to reset testing data 
 testing <- mutate(testing, risk = predict(rffit, testing, type = "prob")[,2])
-testing$decile <- cut(testing$risk, breaks = 10, labels = F)
+testing$decile <- cut(testing$risk, breaks = c(unique(quantile(testing$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 testinggrp <- group_by(testing, decile)
 z <- summarise(testinggrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,3]-z[,2])^2)) 
+sum((z[,2]-z[,3])^2)/nrow(z) #Brier Score
 p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
@@ -405,30 +400,37 @@ combModFit
 ```{r}
 predVDF$RevLogical <- validation$RevLogical
 predVDF <- mutate(predVDF, risk = predict(combModFit, predVDF, type = "prob")[,1])
-predVDF$decile <- cut(predVDF$risk, breaks = 10, labels = F)
+predVDF$decile <- cut(predVDF$risk, breaks = c(unique(quantile(testing$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 predVDFgrp <- group_by(predVDF, decile)
 z <- summarise(predVDFgrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,3]-z[,2])^2)) 
+sum((z[,2]-z[,3])^2)/nrow(z) #Brier Score
 p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
 ```
 
 Notes for paper:
-glmfit (11) RMSE = 3.66
-glmfit3 (3) RMSE = 2.77
-rpartfit (11) RMSE = 0 (1 decile)
-gbmfit (11) RMSE = 3.10
-glmnetfit (10) RMSE = 4.25
-nbfit (11) RMSE = 110.39
-rffit (11) RMSE = 48.97
-combModFit (11) RMSE = 7.20
+glmfit (11) Brier = 16.3
+glmfit3 (3) Brier = 19
+rpartfit (11) Brier = NA
+gbmfit (11) Brier = 32.33
+glmnetfit (10) Brier = 12
+nbfit (11) Brier = 889.7
+rffit (11) Brier = 597.89
+combModFit (11) Brier = 55.75
 
-## Validation with glmfit3:
+Kaiser Brier = 208.4
 ```{r}
-#AUROC
-finalpred <- predict(glmfit3, validation, type="prob")
+obs <- c(61, 68, 83, 105, 95, 117, 140, 126, 164, 279)
+pred <- c(56, 71, 83, 94, 106, 119, 133, 151, 177, 248)
+sum((pred-obs)^2)/10
+```
+
+## Validation with Lasso:
+```{r}
+#AUROC = 0.630 (0.623 - 0.637)
+finalpred <- predict(glmnetfit, validation, type="prob")
 x <- prediction(finalpred[,2],validation$RevLogical)
 y <- performance(x, measure = "tpr", x.measure = "fpr")
 plot(y)
@@ -441,27 +443,23 @@ CI <- c(p-1.96*s, p+1.96*s)
 p #AUC
 CI #AUC 95% CI
 
-#RMSE
-validation <- mutate(validation, risk = predict(glmfit3, validation, type = "prob")[,2])
-validation$decile <- cut(validation$risk, breaks = 10, labels = F)
+#Brier Score = 10.5
+validation <- mutate(validation, risk = predict(glmnetfit, validation, type = "prob")[,2])
+validation$decile <- cut(validation$risk, breaks = c(unique(quantile(validation$risk, probs = seq(0, 1, by = 0.1)))), include.lowest=T, labels = F)
 validationgrp <- group_by(validation, decile)
 z <- summarise(validationgrp, pred_rev = round(sum(risk)), obs_rev = sum(ifelse(RevLogical == "yes",1,0)), min_risk = round(min(risk),3), max_risk = round(max(risk),3))
 z
-sqrt(mean((z[,3]-z[,2])^2)) 
+sum((z[,2]-z[,3])^2)/nrow(z) #Brier Score
 p <- plot(unlist(z[,2]),unlist(z[,3]))
 p
 abline(0,1)
 ```
 
-Notes for paper:
-glmfit3 validation AUROC: 0.623, 0.616-0.630
-glmfit3 validation RMSE: 1.667
-
 ## Graphs
 
-Reliability curve for glmfit3
+Reliability curve for glmnetfit
 ```{r}
-g <- ggplot(z, aes(unlist(z[,2]),unlist(z[,3]))) + geom_point() + labs(title = "Reliability Plot of TKA Revision Prediction Model", x = "Predicted Revisions", y = "Observed Revisions") + geom_abline(intercept = 0, slope = 1) + coord_cartesian(xlim = c(0,115), ylim = c(0,115)) + annotate("text", x = 30, y = 75, label = "RMSE = 1.67")
+g <- ggplot(z, aes(unlist(z[,2]),unlist(z[,3]))) + geom_line(lwd=2, col="blue") + geom_point() + labs(title = "Reliability Plot of TKA Revision Prediction Model", x = "Predicted Revisions", y = "Observed Revisions") + geom_abline(intercept = 0, slope = 1) + coord_cartesian(xlim = c(0,60), ylim = c(0,60)) + annotate("text", x =15, y = 45, label = "Brier Score = 10.5") + theme_bw() 
 ppi <- 300
 png("Reliability.png", width = 6*ppi, height = 6*ppi, res = ppi)
 g
