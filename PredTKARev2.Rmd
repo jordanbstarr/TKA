@@ -1,0 +1,179 @@
+---
+title: "PredTKARev2"
+author: "Jordan Starr"
+date: "November 18, 2015"
+output: html_document
+---
+##Load Data & Packages
+```{r cache=TRUE}
+knitr::opts_chunk$set(cache=T)
+library("dplyr")
+library("caret")
+library("ROCR")
+library("scales")
+library("randomForest")
+set.seed(12)
+alldata <- read.csv("WorkDf5.csv", sep=";")
+```
+
+#Clean Data
+```{r}
+data <- alldata[,c(5:8,19,26:32,39,47,49)]
+data$Diabetes <- as.factor(data$Diabetes)
+data$CKD <- as.factor(data$CKD)
+data$HTN <- as.factor(data$HTN)
+data$CHF <- as.factor(data$CHF)
+data$OSA <- as.factor(data$OSA)
+data$PTSD <- as.factor(data$PTSD)
+data$Tobbaco <- as.factor(data$Tobbaco)
+data$ht <- ifelse(data$ht < 48 | data$ht > 86, NA, data$ht)
+data$wt <- ifelse(data$wt < 80 | data$wt > 600, NA, data$wt)
+data <- mutate(data, BMI = (wt/2.2)/(ht*2.54/100)^2)
+data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
+data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
+```
+
+#5 year f/u
+```{r}
+fu5 <- function() {
+        x <- vector()
+        for (i in 1:nrow(data)) {
+                if (data$RevLogical[i] == 0 & data$t2rev[i] < 1825) {
+                        x <- append(x, NA)
+                }
+                else if (data$RevLogical[i] == 1 & data$t2rev[i] > 1825) {
+                        x <- append(x, 0)
+                }
+                else {
+                        x <- append(x, data$RevLogical[i])   
+                }
+        }
+        return(x)
+}
+data$fu5 <- fu5()
+data$fu5 <- factor(data$fu5, levels = c(0,1),labels = c("no", "yes"))
+data <- data[,c(-3:-5,-13:-15)]
+data <- na.omit(data)
+```
+
+Training, testing, and validation datasets:
+```{r}
+inTrain <- createDataPartition(y=data$fu5, p = .6, list=FALSE)
+training <- data[inTrain, ]
+testingboth <- data[-inTrain, ]
+inTrain2 <- createDataPartition(y=testingboth$fu5, p = .5, list =F)
+testing <- testingboth[inTrain2,]
+validation <- testingboth[-inTrain2,]
+```
+
+GLM with 10-fold cross validation
+```{r}
+ctrl <- trainControl(method="cv", number=10, classProbs = TRUE)
+glmfit <- train(fu5 ~ ., data = training, method="glm", trControl = ctrl)
+pred1 <- predict(glmfit, testing, type="prob")
+x <- prediction(pred1[,2],testing$fu5)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+plot(y)
+abline(a=0, b= 1)
+z <- performance(x, measure = "auc")
+p <- unlist(z@y.values)
+n <- nrow(training)
+s = sqrt(p*(1-p)/n)
+CI <- c(p-1.96*s, p+1.96*s)
+p #AUC
+CI #AUC 95% CI
+```
+
+Random Forest
+```{r}
+rffit <- randomForest(fu5 ~ ., data=training, importance=TRUE)
+pred2 <- predict(rffit, testing, type="prob")
+x <- prediction(pred2[,2],testing$fu5)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+plot(y)
+abline(a=0, b= 1)
+z <- performance(x, measure = "auc")
+p <- unlist(z@y.values)
+n <- nrow(training)
+s = sqrt(p*(1-p)/n)
+CI <- c(p-1.96*s, p+1.96*s)
+p #AUC
+CI #AUC 95% CI
+```
+
+Rpart
+```{r}
+rpartfit <- train(fu5 ~ ., data = training, method="rpart")
+pred3 <- predict(rpartfit, testing, type="prob")
+x <- prediction(pred3[,2],testing$fu5)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+plot(y)
+abline(a=0, b= 1)
+z <- performance(x, measure = "auc")
+p <- unlist(z@y.values)
+n <- nrow(training)
+s = sqrt(p*(1-p)/n)
+CI <- c(p-1.96*s, p+1.96*s)
+p #AUC
+CI #AUC 95% CI
+```
+
+Boosting
+```{r}
+gbmfit <- train(fu5 ~ ., data = training, method="gbm", verbose = F)
+detach("package:dplyr", unload=T) # Need to reload dplyr after gbm to avoid errors
+library(dplyr)
+pred4 <- predict(gbmfit, testing, type="prob")
+x <- prediction(pred4[,2],testing$fu5)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+plot(y)
+abline(a=0, b= 1)
+z <- performance(x, measure = "auc")
+p <- unlist(z@y.values)
+n <- nrow(training)
+s = sqrt(p*(1-p)/n)
+CI <- c(p-1.96*s, p+1.96*s)
+p #AUC
+CI #AUC 95% CI
+```
+
+Glmnet with 10-fold cross validation
+```{r}
+ctrl <- trainControl(method="cv", number=10, classProbs = TRUE)
+glmnetfit <- train(fu5 ~ ., data = training, method="glmnet", trControl = ctrl)
+pred5 <- predict(glmnetfit, testing, type = "prob")
+x <- prediction(pred5[,2],testing$fu5)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+plot(y)
+abline(a=0, b= 1)
+z <- performance(x, measure = "auc")
+p <- unlist(z@y.values)
+n <- nrow(training)
+s = sqrt(p*(1-p)/n)
+CI <- c(p-1.96*s, p+1.96*s)
+p #AUC
+CI #AUC 95% CI
+```
+
+Combined Model
+```{r}
+predDF <- data.frame(pred1 = pred1[,2], pred2 = pred2[,2], pred3 = pred3[,2], pred4 = pred4[,2], pred5 = pred5[,2], fu5 = testing$fu5)
+combModFit <- train(fu5 ~ ., data = predDF, method = "gam")
+pred1V <- predict(glmfit, validation, type = "prob")
+pred2V <- predict(rffit, validation, type = "prob")
+pred3V <- predict(rpartfit, validation, type = "prob")
+pred4V <- predict(gbmfit, validation, type = "prob")
+pred5V <- predict(glmnetfit, validation, type = "prob")
+predVDF <- data.frame(pred1 = pred1V[,2], pred2 = pred2V[,2], pred3 = pred3V[,2], pred4 = pred4V[,2], pred5 = pred5V[,2])
+combPredV <- predict(combModFit, predVDF, type = "prob")
+x <- prediction(combPredV[,1],validation$fu5)
+y <- performance(x, measure = "tpr", x.measure = "fpr")
+plot(y)
+abline(a=0, b= 1)
+z <- performance(x, measure = "auc")
+p <- unlist(z@y.values)
+n <- nrow(training)
+s = sqrt(p*(1-p)/n)
+CI <- c(p-1.96*s, p+1.96*s)
+p #AUC
+CI #AUC 95% CI

@@ -1,0 +1,6 @@
+library(shiny)
+library(survival)
+set.seed(12)
+data2 <- readRDS("data/survdata.rds")
+fit <- readRDS("data/survfit.rds")
+mod <- Surv(data2$t2rev, data2$RevLogical)
