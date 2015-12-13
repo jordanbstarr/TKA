@@ -118,7 +118,7 @@ data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
 data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth) #Remove outliers
 data <- mutate(data, MEDperDay = MEDperMonth/(365/12))
 data2 <- na.omit(data[,c(51,19)])
-data3 <- data2[data2$TimeBefore > 2,] #Only graph chronic opiate users
+data3 <- data2[data2$TimeBefore > 2 & data2$MEDperDay >=2,] #Only graph chronic opiate users
 
 #ggplot version of graph
 p <- ggplot(data3, aes(MEDperDay,TimeBefore))
@@ -129,17 +129,39 @@ h3
 hexbinplot(TimeBefore ~ MEDperDay, data=data3, colramp=rf, trans=log, inv=exp)
 
 #KDE2D version of graph
-k <- kde2d(data3[,1], data3[,2], n=200, lims=c(0,65,3,30))
+k <- kde2d(data3[,1], data3[,2], n=200, lims=c(0,75,3,30))
+#Pretty
+image(k, col=r, ylim=c(0,30))
+#Less pretty
 filled.contour(k,color.palette=colorRampPalette(c('white','blue','yellow','red','darkred')), ylim=c(0,25), xlim=c(0,50))
 
 #Code to save KDE2D version of graph
 ppi <- 300
 png("Density.png", width = 6*ppi, height = 6*ppi, res = ppi)
 image(k, col=r, ylim=c(0,30))
-title(main="Density Plot of Preop Morphine Equivalent \n Use in Chronic Users", xlab = "Morphine Equivalents / Day", ylab = "Months")
+title(main="(b)", xlab = "Morphine Equivalents / Day", ylab = "Months")
 dev.off()
 pdf("Density.pdf")
-image(k, col=r)
-title(main="Density Plot of Daily Morphine Equivalents \n by Months of Preoperative Use", xlab = "MED/ Day", ylab = "Months")
+image(k, col=r, ylim=c(0,30))
+title(main="(b)", xlab = "Morphine Equivalents / Day", ylab = "Months")
 dev.off()
+
+#Add Histograms
+hist(data3$MEDperDay, breaks = seq(2,2500,2), freq = F, xlim = c(2,73), main = "(a)", xlab = "Morphine Equivalents/ Day", ylab = "Percent of Chronic Opiate Users", xaxt="n", col = "grey", ylim=c(0,.1))
+axis(1, at=c(0,10,20,30,40,50,60,70))
+
+A <- hist(data3$TimeBefore, breaks = seq(3,71,2), freq = F, xlim = c(0,29))
+plot(NULL, type = "n", xlim = c(0, max(A$density)), ylim = c(0,30),main = "(c)", ylab = "Months", xlab = "Percent of Chronic Opiate Users")
+rect(0, A$breaks[1:(length(A$breaks) - 1)], A$density, A$breaks[2:length(A$breaks)], col = "grey")
+
+#Images together
+layout(matrix(c(3,4,1,2),2,2,byrow=T))
+image(k, col=r, ylim=c(0,30))
+title(main="(b)", xlab = "Morphine Equivalents / Day", ylab = "Months")
+
+plot(NULL, type = "n", xlim = c(0, max(A$density)), ylim = c(0,30),main = "(c)", ylab = "Months", xlab = "Percent of Chronic Opiate Users")
+rect(0, A$breaks[1:(length(A$breaks) - 1)], A$density, A$breaks[2:length(A$breaks)], col = "grey")
+
+hist(data3$MEDperDay, breaks = seq(2,2500,2), freq = F, xlim = c(2,73), main = "(a)", xlab = "Morphine Equivalents/ Day", ylab = "Percent of Chronic Opiate Users", xaxt="n", col = "grey", ylim=c(0,.1))
+axis(1, at=c(0,10,20,30,40,50,60,70))
 ```
