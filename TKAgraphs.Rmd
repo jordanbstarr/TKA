@@ -165,3 +165,29 @@ rect(0, A$breaks[1:(length(A$breaks) - 1)], A$density, A$breaks[2:length(A$break
 hist(data3$MEDperDay, breaks = seq(2,2500,2), freq = F, xlim = c(2,73), main = "(a)", xlab = "Morphine Equivalents/ Day", ylab = "Percent of Chronic Opiate Users", xaxt="n", col = "grey", ylim=c(0,.1))
 axis(1, at=c(0,10,20,30,40,50,60,70))
 ```
+
+Devision scatterplot
+```{r}
+library("ggplot2")
+library("dplyr")
+data <- read.csv("WorkDf5.csv", sep=";")
+data <- data[,c(11,19,39,47)]
+data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
+data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
+data <- mutate(data, MEDperDay = MEDperMonth/(365/12))
+data <- mutate(data, Chronic = ifelse(TimeBefore > 2 & MEDperDay >= 2, 1, 0))
+data <- na.omit(data[,c(1,3,6,7)])
+datagrp <- group_by(data, DIVISION)
+points <- summarize(datagrp, Count = n(), Rev_Rate = sum(RevLogical)/n(), Med_MED = median(MEDperDay), Chron_Rate = sum(Chronic)/n())
+points <- points[points$Count > 49,]
+meanMED <- mean(points$Med_MED)
+sdMED <- sd(points$Med_MED)
+vert <- meanMED + (2 * sdMED)  
+meanRev <- mean(points$Rev_Rate) 
+sdRev <- sd(points$Rev_Rate)
+hor <- meanRev + (2 * sdRev)  
+
+#Plot
+p <- ggplot(points, aes(Med_MED, Rev_Rate))
+p + geom_hline(aes(yintercept=hor), color = "blue", linetype = 2) + geom_vline(aes(xintercept=vert), color = "blue", linetype = 2) + geom_point(aes(colour = Chron_Rate), size = 5) + scale_colour_gradient(high = "red", breaks =c(.1,.2,.3,.4,.5), guide = guide_legend(title = "Chronic Opiate \n Use Rate", reverse = T, keywidth = 3)) + theme_bw() + labs(title = "Opiate Use and TKA Revision for Each VAMC Division", x = "Median Daily Morphine Equivalents", y = "TKA Revision Rate") + annotate("text", x = (vert+.55), y = (hor+.002), colour = "blue", label = "Mean + 2 SD") 
+```
