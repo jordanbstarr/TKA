@@ -3,6 +3,10 @@
 library("dplyr")
 library("survival")
 library("rms")
+library("MASS")
+library("pec")
+library("prodlim")
+library("polspline")
 set.seed(12)
 data <- read.csv("WorkDf5.csv", sep=";")
 data <- data[,c(5:8,19,26:31,39,47,49)]
@@ -12,6 +16,7 @@ data$HTN <- as.factor(data$HTN)
 data$CHF <- as.factor(data$CHF)
 data$OSA <- as.factor(data$OSA)
 data$PTSD <- as.factor(data$PTSD)
+data$gender <- as.factor(ifelse(data$gender=="M",1,0))
 data$ht <- ifelse(data$ht < 48 | data$ht > 86, NA, data$ht)
 data$wt <- ifelse(data$wt < 80 | data$wt > 600, NA, data$wt)
 data <- mutate(data, BMI = (wt/2.2)/(ht*2.54/100)^2)
@@ -22,61 +27,17 @@ data$t2rev <- data$t2rev/365
 data2 <- na.omit(data[,c(-3:-5,-13)])
 data2$RevLogical <- as.logical(ifelse(data2$RevLogical == 0, F, T))
 mod <- Surv(data2$t2rev, data2$RevLogical)
-fit <- coxph(mod ~ . - RevLogical - t2rev, data2)
-fit # MEDperDay HR = 1.001 (1.000759 - 1.001241) p = 0.0043
-Age, CKD, MEDperDay, Diabetes, BMI, CHF, HTN, gender, PTSD, OSA
 
-fit1 <- coxph(mod ~ Age, data2)
-fit2 <- coxph(mod ~ Age + CKD, data2)
-fit3 <- coxph(mod ~ Age + CKD + MEDperDay, data2)
-fit4 <- coxph(mod ~ Age + CKD + MEDperDay + Diabetes, data2)
-fit5 <- coxph(mod ~ Age + CKD + MEDperDay + Diabetes + BMI, data2)
-fit6 <- coxph(mod ~ Age + CKD + MEDperDay + Diabetes + BMI + CHF, data2)
-fit7 <- coxph(mod ~ Age + CKD + MEDperDay + Diabetes + BMI + CHF + HTN, data2)
-fit8 <- coxph(mod ~ Age + CKD + MEDperDay + Diabetes + BMI + CHF + HTN + gender, data2)
-fit9 <- coxph(mod ~ Age + CKD + MEDperDay + Diabetes + BMI + CHF + HTN + gender + PTSD, data2)
-fit10 <- coxph(mod ~ Age + CKD + MEDperDay + Diabetes + BMI + CHF + HTN + gender + PTSD + OSA, data2)
-anova(fit1, fit2, fit3, fit4, fit5, fit6, fit7, fit8, fit9, fit10)
-
-Call:
-coxph(formula = mod ~ Age + CKD + MEDperDay + Diabetes + BMI, 
-    data = data2)
-
-  n= 28805, number of events= 1418 
-
-                coef  exp(coef)   se(coef)       z Pr(>|z|)    
-Age       -0.0502813  0.9509619  0.0029687 -16.937  < 2e-16 ***
-CKD1       0.4169176  1.5172774  0.0889878   4.685  2.8e-06 ***
-MEDperDay  0.0006968  1.0006970  0.0002392   2.913  0.00358 ** 
-Diabetes1  0.1840338  1.2020565  0.0583592   3.153  0.00161 ** 
-BMI       -0.0108901  0.9891690  0.0047414  -2.297  0.02163 *  
----
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-
-          exp(coef) exp(-coef) lower .95 upper .95
-Age          0.9510     1.0516    0.9454    0.9565
-CKD1         1.5173     0.6591    1.2744    1.8064
-MEDperDay    1.0007     0.9993    1.0002    1.0012
-Diabetes1    1.2021     0.8319    1.0721    1.3477
-BMI          0.9892     1.0109    0.9800    0.9984
-
-Concordance= 0.625  (se = 0.008 )
-Rsquare= 0.011   (max possible= 0.628 )
-Likelihood ratio test= 312.1  on 5 df,   p=0
-Wald test            = 308.2  on 5 df,   p=0
-Score (logrank) test = 308.1  on 5 df,   p=0
-
-#Individual Plot
-Age <- 65
-Diabetes <- as.factor(0)
-CKD <- as.factor(0)
-BMI <- 25
-MEDperDay <- 10
-x <- survfit(fit5, newdata=data.frame(Age= Age, Diabetes = Diabetes, CKD = CKD, BMI = BMI, MEDperDay = MEDperDay))
-u <- unlist(x)
-m <- 1 - u$lower1879
-y <- ifelse(m >= .8, 1, 1.25*m)
-plot(x, mark.time=F, xlab="Years", ylab="TKA Revision Probability", main="Individual TKA Revision Probability", ylim=c(0,y), fun="event", lwd = 2)
+#Create model
+f <- cph(Surv(t2rev, RevLogical) ~ ., data=data2, x=T, y=T, surv=T, time.inc=1)
+validate(f, method="crossvalidation", B=10, bw=T) #Age, Diabetes, CKD, MEDperDay
+fit2 <- cph(Surv(t2rev, RevLogical) ~ Age + Diabetes + CKD + MEDperDay, data=data2, x=T, y=T, surv=T, time.inc=1)
+cal <- calibrate(fit2, u = 1)
+plot(cal, xlab="Predicted 1 Year Revision Rate", ylab="Observed 1 Year Revision Rate", subtitle=F, riskdist=T, lwd=2, ylim=c(0.95,1), xlim=c(.95,1), scat1d.opts=list(side=1, frac=.1),col=c(2,3))
+legend(.95,1,legend=c("Ideal", "Observed", "Bias Corrected"),col=c("black", "red", "blue"),lty=1,lwd=2,bty="n",y.intersp=.5)
+title(main="Calibration Plot of TKA Revision Model at 1 Year")
+text(.99,.97,"Bias Corrected Mean\nAbsolute Error = 0.0027")
+abline(0,1, lwd=2)
 
 # Graph to show significance of MEDperDay
 x <- data2$MEDperDay[data2$MEDperDay > 0]
@@ -112,8 +73,8 @@ objNpsurv <- npsurv(Surv(data2$t2rev, data2$RevLogical) ~ data2$MEDgrp)
 ppi <- 300
 tiff("MEDSurvival.tiff", width = 6*ppi, height = 6*ppi, res = ppi)
 par(mar=c(5.1,4.1,4.1,5.1))
-survplot(objNpsurv, ylim = c(.9,1), xlab = "Years", ylab = "Percent of TKAs Unrevised", conf.type="log-log", levels.only=T, conf="none", lty = c(2,3,1,4), col = c(2,3,1,4), lwd = 3, time.inc=1, label.curves=F)
-legend(x=2.5, y = 1,cex=1, bty="n", legend=c("Non User", "Lower Third ( < 3.7 MED/ day)", "Middle Third (3.7-14.1 MED/ day)", "Upper Third ( > 14.1 MED/ day)"), col = c(1,2,3,4), lty = c(1,2,3,4), lwd=3, y.intersp=.5)
+survplot(objNpsurv, ylim = c(.9,1), xlab = "Years After TKA", ylab = "Percent of TKAs Unrevised", conf.type="log-log", levels.only=T, conf="none", lty = c(2,5,1,4), col = c(2,3,1,4), lwd = 3, time.inc=1, label.curves=F)
+legend(x=2, y = 1,cex=1, bty="n", legend=c("Non User", "Lower Third ( < 3.7 MED/ day)", "Middle Third (3.7-14.1 MED/ day)", "Upper Third ( > 14.1 MED/ day)"), col = c(1,2,3,4), lty = c(1,2,5,4), lwd=3, y.intersp=.5)
 title(main = "Survival Curve of TKA Revision by Opiate Use Group")
 segments(7.1,.908,7.1,.921)
 segments(7.1,.923,7.1,.938)
@@ -135,128 +96,6 @@ dev.off()
 
 #MED distribution
 ```{r}
-hist(data2$MEDperDay, breaks = seq(0,2500,4), xlim = c(0,116), freq = F, main = "Distribution of Preoperative Daily \nMorphine Equivalent Use", xlab = "Daily Morphine Equivalents", ylab = "Percent of Cohort", col = "grey")
-```
-
-# 30-day f/u analysis
-```{r}
-library("ggplot2")
-library("dplyr")
-library("survival")
-library("rms")
-set.seed(12)
-data <- read.csv("WorkDf5.csv", sep=";")
-data <- data[,c(5:8,19,26:32,39,47,49)]
-data$Diabetes <- as.factor(data$Diabetes)
-data$CKD <- as.factor(data$CKD)
-data$HTN <- as.factor(data$HTN)
-data$CHF <- as.factor(data$CHF)
-data$OSA <- as.factor(data$OSA)
-data$PTSD <- as.factor(data$PTSD)
-data$Tobbaco <- as.factor(data$Tobbaco)
-data$ht <- ifelse(data$ht < 48 | data$ht > 86, NA, data$ht)
-data$wt <- ifelse(data$wt < 80 | data$wt > 600, NA, data$wt)
-data <- mutate(data, BMI = (wt/2.2)/(ht*2.54/100)^2)
-data$MEDperDay <- ifelse(data$TimeBefore==0, 0, (data$med_load/data$TimeBefore)/(365/12))
-data$MEDperDay <- ifelse(data$MEDperDay > 2630.137, NA, data$MEDperDay)
-data$t2rev <- ifelse(data$t2rev < 0, NA, data$t2rev)
-data$Rev30 <- ifelse(data$RevLogical == 1 & data$t2rev > 30, 0, data$RevLogical)
-data$t2rev <- ifelse(data$t2rev > 30, 30, data$t2rev)
-data2 <- na.omit(data[,c(-3:-5,-13,-14)])
-data2$Rev30 <- as.logical(ifelse(data2$Rev30 == 0, F, T))
-mod <- Surv(data2$t2rev, data2$Rev30)
-fit <- coxph(mod ~ . - Rev30 - t2rev, data2)
-fit #MEDperDay p = 0.530
-```
-
-# 1-year f/u analysis
-```{r}
-library("ggplot2")
-library("dplyr")
-library("survival")
-library("rms")
-set.seed(12)
-data <- read.csv("WorkDf5.csv", sep=";")
-data <- data[,c(5:8,19,26:31,39,47,49)]
-data$Diabetes <- as.factor(data$Diabetes)
-data$CKD <- as.factor(data$CKD)
-data$HTN <- as.factor(data$HTN)
-data$CHF <- as.factor(data$CHF)
-data$OSA <- as.factor(data$OSA)
-data$PTSD <- as.factor(data$PTSD)
-data$ht <- ifelse(data$ht < 48 | data$ht > 86, NA, data$ht)
-data$wt <- ifelse(data$wt < 80 | data$wt > 600, NA, data$wt)
-data <- mutate(data, BMI = (wt/2.2)/(ht*2.54/100)^2)
-data$MEDperDay <- ifelse(data$TimeBefore==0, 0, (data$med_load/data$TimeBefore)/(365/12))
-data$MEDperDay <- ifelse(data$MEDperDay > 2630.137, NA, data$MEDperDay)
-data$t2rev <- ifelse(data$t2rev < 0, NA, data$t2rev)
-data$Rev1y <- ifelse(data$RevLogical == 1 & data$t2rev > 365, 0, data$RevLogical)
-data$t2rev <- ifelse(data$t2rev > 365, 365, data$t2rev)
-data2 <- na.omit(data[,c(-3:-5,-12,-13)])
-data2$Rev1y <- as.logical(ifelse(data2$Rev1y == 0, F, T))
-mod <- Surv(data2$t2rev, data2$Rev1y)
-fit <- coxph(mod ~ . - Rev1y - t2rev, data2)
-fit #MEDperDay HR = 1.001 (1.000712 - 1.001288), p = 0.00013
-# Age, MEDperDay, CKD, HTN, CHF, gender, PTSD, Diabetes, OSA, BMI
-
-fit1 <- coxph(mod ~ Age, data2)
-fit2 <- coxph(mod ~ Age + MEDperDay, data2)
-fit3 <- coxph(mod ~ Age + CKD + MEDperDay, data2)
-fit4 <- coxph(mod ~ Age + CKD + MEDperDay + HTN, data2)
-fit5 <- coxph(mod ~ Age + CKD + MEDperDay + HTN + CHF, data2)
-fit6 <- coxph(mod ~ Age + CKD + MEDperDay + HTN + CHF + gender, data2)
-fit7 <- coxph(mod ~ Age + CKD + MEDperDay + HTN + CHF + gender + PTSD, data2)
-fit8 <- coxph(mod ~ Age + CKD + MEDperDay + HTN + CHF + gender + PTSD + Diabetes, data2)
-fit9 <- coxph(mod ~ Age + CKD + MEDperDay + HTN + CHF + gender + PTSD + Diabetes + OSA, data2)
-fit10 <- coxph(mod ~ Age + CKD + MEDperDay + HTN + CHF + gender + PTSD + Diabetes + OSA + BMI, data2)
-anova(fit1, fit2, fit3, fit4, fit5, fit6, fit7, fit8, fit9, fit10)
-
-#Individual Plot
-Age <- 50
-CKD <- as.factor(1)
-HTN <- as.factor(0)
-CHF <- as.factor(1)
-MEDperDay <- 100
-plot(survfit(fit5, newdata=data.frame(Age= Age, CKD = CKD, HTN = HTN, CHF = CHF, MEDperDay = MEDperDay)),xlab="Days", ylab="TKA Revision Probability", main="Individual TKA Revision Probability", xaxt="n", fun="event")
-axis(1, at=c(0,30,90,180,365))
-
-# Graph to show significance of MEDperDay
-x <- data2$MEDperDay[data2$MEDperDay > 0]
-quantile(x, probs = seq(0, 1, by = 0.333))
-grp <- function() {
-        x <- vector()
-        for (i in 1:nrow(data2)) {
-                if (data2$MEDperDay[i] == 0) {
-                        x <- append(x, "None")
-                } else if (data2$MEDperDay[i] > 0 & data2$MEDperDay[i] < 3.69863) {
-                        x <- append(x, "Lower Third")
-                } else if (data2$MEDperDay[i] > 3.6986 & data2$MEDperDay[i] < 14.09002) {
-                        x <- append(x, "Middle Third")
-                } else {
-                        x <- append(x, "Upper Third")
-                }  
-        }
-        return(x)
-}
-data2$MEDgrp <- grp()
-
-#Individual curve comparison p-values
-data3 <- data2[(data2$MEDgrp == "Middle Third" | data2$MEDgrp == "Upper Third"),]
-fit3 <- survdiff(Surv(data3$t2rev, data3$Rev1y) ~ data3$MEDgrp)
-fit3 #gives p-value
-
-1v2 = 0.0499, 1v3 = 0.0505, 1v4 = 2.49e-07
-2v3 = 0.993, 2v4 = 0.01
-3v4 = 0.0096
-
-#Survival curves by MEDgrp
-objNpsurv <- npsurv(Surv(data2$t2rev, data2$Rev1y) ~ data2$MEDgrp)
-ppi <- 300
-tiff("MEDSurvival.tiff", width = 6*ppi, height = 6*ppi, res = ppi)
-survplot(objNpsurv, ylim = c(.97,1), xlab = "Days", ylab = "Percent of TKAs Unrevised", conf.type="log-log", levels.only=T, conf="none", col = c(1,2,3,4), lwd = 2,pos="right", xlim=c(0,365))
-title(main = "TKA Revision at One Year by Opiate Use Group")
-text(5, .98, "- None vs. Lower Third p-value = 0.0499*", pos=4)
-text(5, .977, "- Lower Third vs. Middle Third p-value = 0.993", pos=4)
-text(5, .974, "- Middle Third vs. Upper Third p-value = 0.0096*", pos=4)
-dev.off()
+hist(data2$MEDperDay, breaks = seq(0,2500,4), xlim = c(0,116), ylim=c(0,.16), freq = F, main = "", xlab = "Daily Oral Morphine Equivalents (mg)", ylab = "Percent of Cohort", col = "grey")
+title(main = "Distribution of Preoperative Daily Morphine Equivalent Use")
 ```
