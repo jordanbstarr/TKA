@@ -3,13 +3,156 @@ Load libraries and minimally clean data
 knitr::opts_chunk$set(cache=T)
 library("ggplot2")
 library("dplyr")
+library(grid)
+library(gridExtra)
 data <- read.csv("WorkDf5.csv", sep=";")
 data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
 data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
+data$MEDperDay <- data$MEDperMonth/(365/12)
+data$realChronic <- ifelse(data$TimeBefore > 2 & data$MEDperDay >= 2, 1, 0)
+data$highMED <- ifelse(data$MEDperDay > 100, 1, 0)
+data$user <- ifelse(data$MEDperDay > 0,1,0)
+data$ht <- ifelse(data$ht < 48 | data$ht > 86, NA, data$ht)
+data$wt <- ifelse(data$wt < 80 | data$wt > 600, NA, data$wt)
+data <- mutate(data, BMI = (wt/2.2)/(ht*2.54/100)^2)
 datagrp <- group_by(data, TKAYear)
 data$TKAYear <- as.factor(data$TKAYear)
 ```
+#Create Table 1
+```{r}
+mean(data$Age)
+sd(data$Age)
+mean(data$BMI, na.rm=T)
+sd(data$BMI, na.rm=T)
+nrow(data[data$gender == "M",])/ nrow(data)
+sum(data$CKD, na.rm=T)/ nrow(data)
+sum(data$Diabetes, na.rm=T)/ nrow(data)
+sum(data$HTN, na.rm=T)/ nrow(data)
+sum(data$OSA, na.rm=T)/ nrow(data)
+sum(data$PTSD, na.rm=T)/ nrow(data)
+data2 <- filter(data, MEDperDay == 0)
+mean(data2$Age)
+sd(data2$Age)
+mean(data2$BMI, na.rm=T)
+sd(data2$BMI, na.rm=T)
+nrow(data2[data2$gender == "M",])/ nrow(data2)
+sum(data2$CKD, na.rm=T)/ nrow(data2)
+sum(data2$Diabetes, na.rm=T)/ nrow(data2)
+sum(data2$HTN, na.rm=T)/ nrow(data2)
+sum(data2$OSA, na.rm=T)/ nrow(data2)
+sum(data2$PTSD, na.rm=T)/ nrow(data2)
+data2 <- filter(data, MEDperDay > 0 & realChronic == 0)
+mean(data2$Age)
+sd(data2$Age)
+mean(data2$BMI, na.rm=T)
+sd(data2$BMI, na.rm=T)
+nrow(data2[data2$gender == "M",])/ nrow(data2)
+sum(data2$CKD, na.rm=T)/ nrow(data2)
+sum(data2$Diabetes, na.rm=T)/ nrow(data2)
+sum(data2$HTN, na.rm=T)/ nrow(data2)
+sum(data2$OSA, na.rm=T)/ nrow(data2)
+sum(data2$PTSD, na.rm=T)/ nrow(data2)
+data2 <- filter(data, realChronic == 1)
+mean(data2$Age)
+sd(data2$Age)
+mean(data2$BMI, na.rm=T)
+sd(data2$BMI, na.rm=T)
+nrow(data2[data2$gender == "M",])/ nrow(data2)
+sum(data2$CKD, na.rm=T)/ nrow(data2)
+sum(data2$Diabetes, na.rm=T)/ nrow(data2)
+sum(data2$HTN, na.rm=T)/ nrow(data2)
+sum(data2$OSA, na.rm=T)/ nrow(data2)
+sum(data2$PTSD, na.rm=T)/ nrow(data2)
 
+#P values
+prop.test(x=c(.955*14077,.937*5122,.936*14450), n=c(14077, 5122, 14450))
+prop.test(x=c(.083*14077,.096*5122,.082*14450), n=c(14077, 5122, 14450))
+prop.test(x=c(.313*14077,.320*5122,.320*14450), n=c(14077, 5122, 14450))
+prop.test(x=c(.665*14077,.675*5122,.653*14450), n=c(14077, 5122, 14450))
+prop.test(x=c(.051*14077,.060*5122,.066*14450), n=c(14077, 5122, 14450))
+prop.test(x=c(.127*14077,.157*5122,.201*14450), n=c(14077, 5122, 14450))
+
+data$usergrp <- ifelse(data$user == 0, 0, 1)
+data$usergrp <- ifelse(data$realChronic == 1, 2, data$usergrp)
+fit1 <- aov(data$Age ~ data$usergrp)
+summary(fit1)
+fit2 <- aov(data$BMI ~ data$usergrp)
+summary(fit2)
+```
+#Create Table 2
+```{r}
+table1 <- summarise(datagrp, count = n(), users = sum(user, na.rm=T)/n(), medMED = median(MEDperDay, na.rm=T), IQR25 = quantile(MEDperDay, na.rm=T)[2], IQR75 = quantile(MEDperDay, na.rm=T)[4], chronic = sum(realChronic, na.rm=T)/n(), hundred = sum(highMED, na.rm=T)/n())
+table1
+
+datagrp2 <- filter(datagrp, realChronic == 1)
+table2 <- summarise(datagrp2, chron_med_MED = median(MEDperDay, na.rm=T), IQR25 = quantile(MEDperDay, na.rm=T)[2], IQR75 = quantile(MEDperDay, na.rm=T)[4] )
+table2
+
+#P values
+year <- c(2006, 2007, 2008, 2009, 2010, 2011)
+overall <- c(5296, 5103, 5551, 5751, 6027, 5914)
+users <- c(.598,.570,.571,.584,.581,.583)
+median <- c(1.47,1.23,1.21,1.41,1.32,1.41)
+chronic <- c(.434, .427,.422,.433,.432,.43)
+chronMed <- c(10.06,10.99,10.89,11.10,12.1,13.15)
+highMED <- c(2.1,2.2,2.4,1.8,1.9,2.1)
+fit1 <- lm(overall ~ year)
+fit2 <- lm(users ~ year)
+fit3 <- lm(median ~ year)
+fit4 <- lm(chronic ~ year)
+fit5 <- lm(chronMed ~ year)
+fit6 <- lm(highMED ~ year)
+summary(fit1)
+summary(fit2)
+summary(fit3)
+summary(fit4)
+summary(fit5)
+summary(fit6)
+```
+Bar Graph
+```{r}
+datagrp3 <- group_by(data, DIVISION)
+barData1 <- summarize(datagrp3, N = n(), Users = sum(user, na.rm=T)/n(), Chronic = sum(realChronic, na.rm=T)/n(), HighMED = sum(highMED, na.rm=T)/n(), Median = median(MEDperDay, na.rm=T))
+barData1 <- barData1[barData1$N > 49,]
+datagrp4 <- group_by(data[data$realChronic == 1,], DIVISION)
+barData2 <- summarize(datagrp4, N = n(), Chron_Median = median(MEDperDay, na.rm=T))
+barData2 <- barData2[barData2$N > 24,]
+
+barDF1 <- data.frame(Outcome = c(rep("Opioid Users", 2), rep("Chronic Opioid\nUsers", 2), rep(">100 MEs\nper Day", 2)), Group = c(rep(c("5th %", "95th %"),3)))
+barDF1$percent <- c(quantile(barData1$Users, c(.05,.95)), quantile(barData1$Chronic, c(.05,.95)), quantile(barData1$HighMED, c(.05,.95)))
+
+barDF2 <- data.frame(Outcome = c(rep("Overall\nMedian MEs", 2), rep("Chronic User\nMedian MEs", 2)), Group = c(rep(c("5th %", "95th %"),2)))
+barDF2$median <- c(quantile(barData1$Median, c(.05,.95)), quantile(barData2$Chron_Median, c(.05,.95)))
+
+barDF1$Outcome <- factor(barDF1$Outcome, levels=barDF1$Outcome)
+barDF2$Outcome <- factor(barDF2$Outcome, levels=barDF2$Outcome)
+g1 <- ggplot(barDF1, aes(Outcome, percent, fill=Group)) + geom_bar(position="dodge", stat="identity", color = "black") + theme_bw(base_size=18) + scale_fill_brewer() + labs(x="", y ="Rate") + theme(legend.title=element_blank()) + coord_cartesian(ylim=c(0,.7)) + scale_y_continuous(breaks=seq(0,.7,.1)) + guides(fill=FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+g2 <- ggplot(barDF2, aes(Outcome, median, fill=Group)) + geom_bar(position="dodge", stat="identity", color = "black") + theme_bw(base_size=18) + coord_cartesian(ylim=c(0,18)) + scale_fill_brewer() + labs(x="", y ="Milligrams") + theme(legend.title=element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + guides(fill = guide_legend(override.aes = list(colour = NULL))) + scale_y_continuous(breaks=seq(0,18,3))
+
+grid.arrange(g1, g2, ncol = 2, main = textGrob("Variability in Prescription Opioid Use by VA Medical Centers", gp=gpar(fontsize=24)))
+```
+
+State analysis
+```{r}
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+datagrp3 <- group_by(data, DIVISION)
+barData1 <- summarize(datagrp3, State = Mode(State), N = n(), Users = sum(user, na.rm=T)/n(), Chronic = sum(realChronic, na.rm=T)/n(), HighMED = sum(highMED, na.rm=T)/n(), Median = median(MEDperDay, na.rm=T))
+barData1 <- barData1[barData1$N > 49,]
+datagrp4 <- group_by(data[data$realChronic == 1,], DIVISION)
+barData2 <- summarize(datagrp4, N = n(), State = Mode(State), Chron_Median = median(MEDperDay, na.rm=T))
+barData2 <- barData2[barData2$N > 24,]
+
+View(arrange(barData1, Users))
+View(arrange(barData1, Chronic))
+View(arrange(barData1, HighMED))
+View(arrange(barData1, Median))
+View(arrange(barData2, Chron_Median))
+```
 Graph: MEDperMonth by year 
 ```{r}
 #Mean
@@ -166,7 +309,7 @@ hist(data3$MEDperDay, breaks = seq(2,2500,2), freq = F, xlim = c(2,73), main = "
 axis(1, at=c(0,10,20,30,40,50,60,70))
 ```
 
-Devision scatterplot
+Devision scatterplot 1
 ```{r}
 library("ggplot2")
 library("dplyr")
@@ -190,4 +333,33 @@ hor <- meanRev + (2 * sdRev)
 #Plot
 p <- ggplot(points, aes(Med_MED, Rev_Rate))
 p + geom_hline(aes(yintercept=hor), color = "blue", linetype = 2) + geom_vline(aes(xintercept=vert), color = "blue", linetype = 2) + geom_point(aes(colour = Chron_Rate), size = 5) + scale_colour_gradient(high = "red", breaks =c(.1,.2,.3,.4,.5), guide = guide_legend(title = "Chronic Opiate \n Use Rate", reverse = T, keywidth = 3)) + theme_bw() + labs(title = "Opiate Use and TKA Revision for Each VAMC Division", x = "Median Daily Morphine Equivalents", y = "TKA Revision Rate") + annotate("text", x = (vert+.55), y = (hor+.002), colour = "blue", label = "Mean + 2 SD") 
+```
+
+Devision scatterplot 2
+```{r}
+library("ggplot2")
+library("dplyr")
+data <- read.csv("WorkDf5.csv", sep=";")
+data <- data[,c(11,19,47)]
+data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
+data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
+data <- mutate(data, MEDperDay = MEDperMonth/(365/12))
+data <- mutate(data, Chronic = ifelse(TimeBefore > 2 & MEDperDay >= 2, 1, 0))
+data$highMED <- ifelse(data$MEDperDay > 100, 1, 0)
+data <- na.omit(data[,c(1,5,6,7)])
+datagrp <- group_by(data, DIVISION)
+points <- summarize(datagrp, Count = n(), Med_MED = median(MEDperDay), Chron_Rate = sum(Chronic)/n(), highMED = 100*sum(highMED)/n())
+points <- points[points$Count > 49,]
+meanMED <- mean(points$Med_MED)
+sdMED <- sd(points$Med_MED)
+vert1 <- meanMED + (1 * sdMED)
+vert2 <- meanMED + (2 * sdMED)
+meanChron <- mean(points$Chron_Rate) 
+sdChron <- sd(points$Chron_Rate)
+hor1 <- meanChron + (1 * sdChron)
+hor2 <- meanChron + (2 * sdChron)
+
+#Plot
+p <- ggplot(points, aes(Med_MED, Chron_Rate))
+p + geom_vline(aes(xintercept=vert1), color = "blue", linetype = 2) + geom_vline(aes(xintercept=vert2), color = "blue", linetype = 2) + geom_hline(aes(yintercept=hor1), color = "blue", linetype = 2) + geom_hline(aes(yintercept=hor2), color = "blue", linetype = 2) + geom_point(aes(colour = highMED), size = 5) + scale_colour_gradient(high = "red", breaks =c(0,2,4,6), guide = guide_legend(title = "> 100 MEs\nper Day (%)", reverse = T)) + theme_bw() + labs(title = "Variability of Opiate Use by VAMC Division", x = "Median Daily Oral Morphine Equivalents (mg)", y = "Chronic Opiate Use Rate") + annotate("text", x = (vert2+.3), y = .05, colour = "blue", label = "+2 SDs") + annotate("text", x = (vert1+.25), y = .05, colour = "blue", label = "+1 SD") + annotate("text", x = 0, y = (hor1 - .01), colour = "blue", label = "+1 SD") + annotate("text", x = 0, y = (hor2 - .01), colour = "blue", label = "+2 SDs") + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())  
 ```

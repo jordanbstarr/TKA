@@ -29,15 +29,20 @@ Remove unnecessary columns
 ```{r}
 data <- data[,c(9,10,19,20,39,47)]
 ```
-Create MEDperMonth variable and remove extreme outliers
+Create MEDperDay variables and remove extreme outliers
 ```{r}
 data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
 ggplot(data=data, aes(data$MEDperMonth)) + geom_histogram() + coord_cartesian(ylim=c(0,5)) + scale_x_continuous(breaks=seq(50000,150000,10000))
 data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
+data$MEDperDay <- data$MEDperMonth/(365/12)
+data$highMED <- ifelse(data$MEDperDay > 100, 1, 0)
+data$user <- ifelse(data$MEDperDay > 0, 1, 0)
 ```
 Create chronic variable
 ```{r}
-data$chronic <- ifelse(data$TimeBefore > 2, 1, 0)
+data$chronic <- ifelse(data$TimeBefore > 2 & data$MEDperDay >= 2, 1, 0)
+# For Chronic User Median MED map only
+# data <- data[data$chronic == 1,]
 ```
 Format state values for mapping
 ```{r}
@@ -60,6 +65,8 @@ simpleCap <- function(x) {
                 paste(toupper(substring(s, 1,1)), substring(s, 2), sep="", collapse=" ")
         }
 }
+## For Chronic user median MED map
+## data <- data[!is.na(data$State),]
 data$State <- sapply(data$State, simpleCap)
 data$State <- gsub("*missing*", NA, data$State)
 
@@ -84,10 +91,10 @@ data$NAME <- gsub("0", NA, data$NAME)
 ```
 Remove unnecessary columns again and remove NAs
 ```{r}
-data <- data[,c(4,5,7:10)]
+data <- data[,c(10:13)]
 data <- na.omit(data)
 ```
-Group and summarize data by state and county, then remove counties with less than 10 patients.
+Group and summarize data by state and county, then remove counties with less than 15 patients.
 ```{r}
 datagrp <- group_by(data, STATEFP, NAME)
 
@@ -95,7 +102,7 @@ datagrp <- group_by(data, STATEFP, NAME)
 revMapDF <- summarize(datagrp, Revision_Rate = mean(RevLogical), Count = n())
 rmSmallSamp1 <- function() {
         for (i in 1:nrow(revMapDF)) {
-                if (revMapDF$Count[i] < 10) {
+                if (revMapDF$Count[i] < 15) {
                         revMapDF$Revision_Rate[i] <- NA
                 } else {next}
         }
@@ -105,12 +112,12 @@ revMapDF <- rmSmallSamp1()
 revMapDF$NAME <- as.factor(revMapDF$NAME)
 revMapDF$STATEFP <- as.factor(revMapDF$STATEFP)
 
-#MED/Month Map Data 
-MEDMapDF <- summarize(datagrp, Median_MED_per_Month = median(MEDperMonth), Count = n())
+#MED/Day Map Data 
+MEDMapDF <- summarize(datagrp, Median_MED_per_Day = median(MEDperDay), Count = n())
 rmSmallSamp2 <- function() {
         for (i in 1:nrow(MEDMapDF)) {
-                if (MEDMapDF$Count[i] < 10) {
-                        MEDMapDF$Median_MED_per_Month[i] <- NA
+                if (MEDMapDF$Count[i] < 15) {
+                        MEDMapDF$Median_MED_per_Day[i] <- NA
                 } else {next}
         }
         MEDMapDF
@@ -123,7 +130,7 @@ MEDMapDF$NAME <- as.factor(MEDMapDF$NAME)
 chronicMapDF <- summarize(datagrp, Chronic_Use_Rate = mean(chronic), Count = n())
 rmSmallSamp3 <- function() {
         for (i in 1:nrow(chronicMapDF)) {
-                if (chronicMapDF$Count[i] < 10) {
+                if (chronicMapDF$Count[i] < 15) {
                         chronicMapDF$Chronic_Use_Rate[i] <- NA
                 } else {next}
         }
@@ -137,7 +144,7 @@ chronicMapDF$NAME <- as.factor(chronicMapDF$NAME)
 typesMapDF <- summarize(datagrp, Type_Before = mean(TypeBefore), Count = n())
 rmSmallSamp4 <- function() {
         for (i in 1:nrow(typesMapDF)) {
-                if (typesMapDF$Count[i] < 10) {
+                if (typesMapDF$Count[i] < 15) {
                         typesMapDF$Type_Before[i] <- NA
                 } else {next}
         }
@@ -146,6 +153,48 @@ rmSmallSamp4 <- function() {
 typesMapDF <- rmSmallSamp4() 
 typesMapDF$STATEFP <- as.factor(typesMapDF$STATEFP)
 typesMapDF$NAME <- as.factor(typesMapDF$NAME)
+
+#highMED data
+highMEDMapDF <- summarize(datagrp, High_MED_Rate = mean(highMED), Count = n())
+rmSmallSamp5 <- function() {
+        for (i in 1:nrow(highMEDMapDF)) {
+                if (highMEDMapDF$Count[i] < 15) {
+                        highMEDMapDF$High_MED_Rate[i] <- NA
+                } else {next}
+        }
+        highMEDMapDF
+}
+highMEDMapDF <- rmSmallSamp5() 
+highMEDMapDF$STATEFP <- as.factor(highMEDMapDF$STATEFP)
+highMEDMapDF$NAME <- as.factor(highMEDMapDF$NAME)
+
+#user data
+userMapDF <- summarize(datagrp, User_Rate = mean(user), Count = n())
+rmSmallSamp6 <- function() {
+        for (i in 1:nrow(userMapDF)) {
+                if (userMapDF$Count[i] < 15) {
+                        userMapDF$User_Rate[i] <- NA
+                } else {next}
+        }
+        userMapDF
+}
+userMapDF <- rmSmallSamp6() 
+userMapDF$STATEFP <- as.factor(userMapDF$STATEFP)
+userMapDF$NAME <- as.factor(userMapDF$NAME)
+
+#Chronic user median MED map
+chronMedMEDMapDF <- summarize(datagrp, Median_MED = median(MEDperDay), Count = n())
+rmSmallSamp7 <- function() {
+        for (i in 1:nrow(chronMedMEDMapDF)) {
+                if (chronMedMEDMapDF$Count[i] < 10) {
+                        chronMedMEDMapDF$Median_MED[i] <- NA
+                } else {next}
+        }
+        chronMedMEDMapDF
+}
+chronMedMEDMapDF <- rmSmallSamp7() 
+chronMedMEDMapDF$STATEFP <- as.factor(chronMedMEDMapDF$STATEFP)
+chronMedMEDMapDF$NAME <- as.factor(chronMedMEDMapDF$NAME)
 ```
 Load map data and combine with revision data
 ```{r}
@@ -171,7 +220,7 @@ pdf("TKA Revision.pdf")
 j
 dev.off()
 ```
-Reload map data and combine with MED/Month data
+Reload map data and combine with MED/Day data
 ```{r}
 counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
 counties@data$id <- rownames(counties@data)
@@ -180,9 +229,9 @@ counties.df <- fortify(counties)
 counties.df <- join(counties.df, counties@data, by="id")
 counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
 ```
-Create MED/Month Map
+Create MED/Day Map
 ```{r}
-p <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Median_MED_per_Month), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Median Preoperative Morphine Equivalent \n Usage per Month by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+p <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Median_MED_per_Day), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Median Preoperative Daily Oral Morphine Equivalent\nUsage per Day by County", fill = "Milligrams") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
 
 #PNG
 ppi <- 300
@@ -208,7 +257,7 @@ counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & c
 
 Create Chronic Opiate Use Rate Map
 ```{r}
-b <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Chronic_Use_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Percent of Patients Using Opiates Chronically \n Preoperatively by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+b <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Chronic_Use_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Rate of Patients Using Opiates Chronically \n Preoperatively by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
 
 #PNG
 ppi <- 300
@@ -246,4 +295,47 @@ dev.off()
 pdf("TypeBefore.pdf")
 c
 dev.off()
+```
+Reload map data and combine with highMED data
+```{r}
+counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
+counties@data$id <- rownames(counties@data)
+counties@data <- join(counties@data, highMEDMapDF, by=c("STATEFP", "NAME"))
+counties.df <- fortify(counties)
+counties.df <- join(counties.df, counties@data, by="id")
+counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
+```
+
+Create High MED Map
+```{r}
+h <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = High_MED_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Rate of Patients Using Greater than 100 Daily Oral Morphine Equivalents\nin Milligrams Preoperatively by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+```
+
+Reload map data and combine with user data
+```{r}
+counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
+counties@data$id <- rownames(counties@data)
+counties@data <- join(counties@data, userMapDF, by=c("STATEFP", "NAME"))
+counties.df <- fortify(counties)
+counties.df <- join(counties.df, counties@data, by="id")
+counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
+```
+
+Create User Map
+```{r}
+h <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = User_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Rates of Patients Using Opioids Preoperatively by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+```
+Reload map data and combine with chronic user median MED data
+```{r}
+counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
+counties@data$id <- rownames(counties@data)
+counties@data <- join(counties@data, chronMedMEDMapDF, by=c("STATEFP", "NAME"))
+counties.df <- fortify(counties)
+counties.df <- join(counties.df, counties@data, by="id")
+counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
+```
+
+Create Chronic User Median MED Map
+```{r}
+h <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Median_MED), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Median Daily Oral Morphine Equivalent Usage\nAmong Chronic Opiate Users by County", fill = "Milligrams") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
 ```
