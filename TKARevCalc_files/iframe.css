@@ -1,0 +1,22 @@
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0px;
+  padding: 0px;
+}
+
+body {
+  /*
+   * The body height should always be the window height (dynamically computed live), so in theory, we should never have overflow on the body.
+   * But just in case of some weird edge case, this avoids double scroll bars, but may truncate content
+   */
+  overflow: hidden;
+}
+
+#shinyapp, iframe {
+  width: 100%;
+  /* http://stackoverflow.com/questions/10426786/div-gets-extra-height-for-no-reason */
+  display: block;
+  -webkit-overflow-scrolling: touch;
+}
+

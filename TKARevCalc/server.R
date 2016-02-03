@@ -2,13 +2,13 @@ shinyServer(function(input, output) {
   CKD <- reactive({as.factor(ifelse(input$CKD == "No",0,1))})
   DM <- reactive({as.factor(ifelse(input$DM == "No",0,1))})
   x <- reactive({
-        survfit(fit, newdata=data.frame(Age = input$Age, Diabetes = DM(), CKD = CKD(), BMI = input$BMI, MEDperDay = input$MED))
+        survfit(fit, newdata=data.frame(Age = input$Age, BMI = input$BMI, Diabetes = DM(), CKD = CKD(), MEDperDay = input$MED))
   })
   u <- reactive({
           unlist(x())
   })  
   m <- reactive({
-          1 - u()$lower1879
+          1 - u()$lower792
   })
   y <- reactive({
           ifelse(m() >= .8, 1, 1.25*m())

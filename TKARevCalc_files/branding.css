@@ -1,0 +1,42 @@
+#rstudio_branding_bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: 100%;
+    height: 50px;
+    line-height: 50px;
+    background-color: black;
+    color: white;
+    font-family: 'Open Sans','Helvetica Neue',Arial,sans-serif;
+    display: inline-block;
+    overflow: hidden;
+    
+}
+
+#rstudio_branding_bar_spacer {
+    height: 50px;
+}
+
+#rstudio_branding_powered_by {
+    margin-right: 10px;
+}
+
+#rstudio_branding_logo_img {
+    width: 100px;
+}
+
+#rstudio_branding_logo {
+    -moz-border-radius: 100px;
+    -webkit-border-radius: 100px;
+    border-radius: 100px;
+    -khtml-border-radius: 100px;
+    width: 110px;
+    line-height: 46px;
+}
+
+#rstudio_branding_title {
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 20px;
+}

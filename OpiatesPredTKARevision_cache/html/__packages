@@ -1,0 +1,8 @@
+base
+dplyr
+ggplot2
+lattice
+caret
+gplots
+ROCR
+scales

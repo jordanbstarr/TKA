@@ -1,0 +1,28 @@
+.shiny-server-account {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: auto;
+  height: auto;
+  background-color: #E0E0E0;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.shiny-server-account a {
+  display: inline-block;
+  margin-left: 3px;
+}
+.shiny-server-expired {
+  position: fixed;
+  display: block;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: auto;
+  background-color: #E11;
+  color: white;
+  font-weight: bold;
+  text-shadow: #333 1px 1px 1px;
+  text-align: center;
+  padding: 8px;
+}

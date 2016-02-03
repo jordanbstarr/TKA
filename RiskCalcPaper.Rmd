@@ -1,0 +1,185 @@
+Load libraries and data
+```{r}
+library(ggplot2)
+library(dplyr)
+library(grid)
+library(gridExtra)
+library(survival)
+library(rms)
+library(MASS)
+library(pec)
+library(prodlim)
+library(polspline)
+library(gdata)
+library(gmodels)
+library(mice)
+set.seed(12) #make results reproducible
+data <- read.csv("WorkDf5.csv", sep=";")
+```
+Remove spurious revision dates and format to years
+```{r}
+data$t2rev <- ifelse(data$t2rev < 1, NA, data$t2rev)
+data <- data[!is.na(data$t2rev),]
+data$t2rev <- data$t2rev/365
+```
+Create new variables
+```{r}
+#Create MED/ day
+data$MEDperDay <- ifelse(data$TimeBefore==0, 0, data$med_load/(data$TimeBefore*(365/12)))
+#Create chronic user boolean
+data$realChronic <- ifelse(data$TimeBefore > 2 & data$MEDperDay >= 2, 1, 0)
+```
+Trim unnecessary columns (tobacco and CHF values inaccurate, excluded)
+```{r}
+data2 <- data[,c(5:8,26:28,30,31,39,49:51)]
+```
+Create BMI variable, using imputation for spurious height and weight entries
+```{r}
+#Remove spurious entries, limits derived from histograms of distributions
+data2$ht <- ifelse(data2$ht < 48 | data2$ht > 86, NA, data2$ht)
+data2$wt <- ifelse(data2$wt < 80 | data2$wt > 600, NA, data2$wt)
+#Create BMI then remove ht and wt
+data2 <- mutate(data2, BMI = (wt/2.2)/(ht*2.54/100)^2)
+data2 <- data2[,c(-3,-4)]
+#Impute missing BMIs
+data3 <- mice(data2, m = 6, meth = 'pmm', seed = 500)
+#Generate all 6 imputations
+m1 <- complete(data3, 1)
+m2 <- complete(data3, 2)
+m3 <- complete(data3, 3)
+m4 <- complete(data3, 4)
+m5 <- complete(data3, 5)
+m6 <- complete(data3, 6)
+#Combine all 6 imputations and average, then return average to original dataset
+allBMIs <- data.frame(one=m1$BMI,two=m2$BMI,three=m3$BMI,four=m4$BMI,five=m5$BMI,six=m6$BMI)
+allBMIs <- mutate(allBMIs, average = (one+two+three+four+five+six)/6)
+data2$BMI <- allBMIs$average
+```
+Format variables
+```{r}
+data2$Diabetes <- as.factor(data2$Diabetes)
+data2$CKD <- as.factor(data2$CKD)
+data2$HTN <- as.factor(data2$HTN)
+data2$OSA <- as.factor(data2$OSA)
+data2$PTSD <- as.factor(data2$PTSD)
+data2$RevLogical <- as.logical(ifelse(data2$RevLogical == 0, F, T))
+data2$realChronic <- as.factor(data2$realChronic)
+```
+Stratify patients by non-opioid users and opioid use tertiles
+```{r}
+a <- data2$MEDperDay[data2$MEDperDay > 0]
+b <- quantile(a, probs = seq(0, 1, by = 1/3), na.rm=T)
+
+grp <- function() {
+        x <- vector()
+        for (i in 1:nrow(data2)) {
+                if (is.na(data2$MEDperDay[i])) {
+                        x <- append(x, NA)
+                } else if (data2$MEDperDay[i] == 0) {
+                        x <- append(x, "None")
+                } else if (data2$MEDperDay[i] > 0 & data2$MEDperDay[i] <= b[2]) {
+                        x <- append(x, "First Tertile")
+                } else if (data2$MEDperDay[i] > b[2] & data2$MEDperDay[i] <= b[3]) {
+                        x <- append(x, "Second Tertile")
+                } else {
+                        x <- append(x, "Third Tertile")
+                }  
+        }
+        return(x)
+}
+data2$MEDgrp <- as.factor(grp())
+```
+Table 1 values for all categorical variables
+```{r}
+univar <- function() {
+        cols <- c(2:7,11)
+        for(i in 1:length(cols)) {
+                x <- cols[i]
+                print(CrossTable(data2[,x], data2$MEDgrp, chisq=T, prop.r=F, prop.t=F, prop.chisq=F, dnn = c(names(data2)[x],"Opioid Use Tertile"), format="SPSS"))
+        }
+}
+univar()
+```
+Table 1 values for all continuous variables
+```{r}
+univar2 <- function() {
+        cols <- c(1,9,10,12)
+        for(i in 1:length(cols)) {
+                x <- cols[i]
+                print(names(data2)[x])
+                print(summary(data2[,x]))
+                print(summary(data2[data2$MEDgrp == "None",x]))
+                print(summary(data2[data2$MEDgrp == "First Tertile",x]))
+                print(summary(data2[data2$MEDgrp == "Second Tertile",x]))
+                print(summary(data2[data2$MEDgrp == "Third Tertile",x]))
+                print(kruskal.test(data2[,x], data2[,13]))
+        }
+}
+univar2()
+```
+Kaplan-Meier Curve P-values
+```{r}
+#None vs First tertile
+data3 <- data2[(data2$MEDgrp == "None" | data2$MEDgrp == "First Tertile"),]
+fit1 <- survdiff(Surv(data3$t2rev, data3$RevLogical) ~ data3$MEDgrp)
+fit1pval <- paste(round(1 - pchisq(fit1$chisq, length(fit1$n) - 1), 3),"*",sep="")
+
+#First vs Second tertile
+data3 <- data2[(data2$MEDgrp == "Second Tertile" | data2$MEDgrp == "First Tertile"),]
+fit2 <- survdiff(Surv(data3$t2rev, data3$RevLogical) ~ data3$MEDgrp)
+fit2pval <- paste(round(1 - pchisq(fit2$chisq, length(fit2$n) - 1), 3),"*",sep="")
+
+#Second vs Third tertile
+data3 <- data2[(data2$MEDgrp == "Second Tertile" | data2$MEDgrp == "Third Tertile"),]
+fit3 <- survdiff(Surv(data3$t2rev, data3$RevLogical) ~ data3$MEDgrp)
+fit3pval <- round(1 - pchisq(fit3$chisq, length(fit3$n) - 1), 3)
+```
+Create Kaplan-Meier Curve
+```{r}
+objNpsurv <- npsurv(Surv(data2$t2rev, data2$RevLogical) ~ data2$MEDgrp)
+par(mar=c(5.1,4.1,4.1,5.1))
+survplot(objNpsurv, ylim = c(.9,1), xlab = "Years After TKA", ylab = "Percent of TKAs Unrevised", conf.type="log-log", levels.only=T, conf="none", lty = c(2,1,5,4), col = c(2,1,3,4), lwd = 3, time.inc=1, label.curves=F)
+legend(x=1.4, y = 1,cex=1, bty="n", legend=c("Non User", "First Tertile ( < 3.7 ME/ Day)", "Second Tertile (3.7 - 14.3 ME/ Day)", "Third Tertile ( > 14.3 ME/ Day)"), col = c(1,2,3,4), lty = c(1,2,5,4), lwd=3, y.intersp=.5)
+title(main = "Survival Curve of TKA Revision by Opioid Use Group")
+segments(7.1,.911,7.1,.921)
+segments(7.1,.923,7.1,.936)
+segments(7.1,.938,7.1,.946)
+segments(7.1,.911,7,.911)
+segments(7.1,.921,7,.921)
+segments(7.1,.923,7,.923)
+segments(7.1,.936,7,.936)
+segments(7.1,.938,7,.938)
+segments(7.1,.946,7,.946)
+segments(7.2,.916,7.1,.916)
+segments(7.2,.9295,7.1,.9295)
+segments(7.2,.942,7.1,.942)
+mtext(fit1pval, 4, 0, at = .942,las=1)
+mtext(fit2pval, 4, 0, at = .9295,las=1)
+mtext(fit3pval, 4, 0, at = .916,las=1)
+```
+Cox PH Model
+```{r}
+#Remove redundant measures of opioid use
+data3 <- data2[,c(-11,-13)]
+#Create model with all variables
+f <- cph(Surv(t2rev, RevLogical) ~ ., data=data3, x=T, y=T, surv=T, time.inc=1)
+#Variable selection
+v <- validate(f, method="crossvalidation", B=10, bw=T)
+#Recreate model with selected variables
+f2 <- cph(Surv(t2rev, RevLogical) ~ Age + Diabetes + CKD + MEDperDay + BMI, data=data3, x=T, y=T, surv=T, time.inc=1)
+```
+Create table 2
+```{r}
+exp(coef(f2)) #HRs
+exp(confint(f2)) #CIs
+f2 #P-values
+```
+Create calibration plot
+```{r}
+cal <- calibrate(f2, u = 1) #Mean absolute error = 0.0029
+plot(cal, xlab="Predicted 1 Year Revision Rate", ylab="Observed 1 Year Revision Rate", subtitle=F, riskdist=T, lwd=2, ylim=c(0.957,1), xlim=c(.957,1), scat1d.opts=list(side=1, frac=.1),col=c(2,3))
+legend(.955,1,legend=c("Ideal", "Observed", "Bias Corrected"),col=c("black", "red", "blue"),lty=1,lwd=2,bty="n",y.intersp=.5)
+title(main="Calibration Plot of TKA Revision Model at 1 Year")
+text(.99,.975,"Bias Corrected Mean\nAbsolute Error = 0.0029")
+abline(0,1, lwd=2)
+```

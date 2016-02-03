@@ -1,0 +1,164 @@
+\documentclass[a4paper]{article}
+%\usepackage{fullpage}
+\usepackage[bottom=2in,margin=1in]{geometry}
+%\usepackage[super]{natbib}
+\usepackage[superscript,biblabel]{cite}
+\usepackage{graphicx}
+\usepackage{url}
+\linespread{1.1}
+\title{ Use of Opioids Pre-operatively is Associated with Early Knee Revision after Total Knee Arthroplasty.}
+\author{
+\large
+{Alon Ben-Ari$^1$ MD, Howard Chansky$^2$ MD, Irene Rozet$^1$ MD}.\\
+\small $^1$Department of Anesthesiology and Pain Medicine, University of Washington,\\
+\small $^2$Department of Orthopedic Surgery and Sport Medicine, University of Washington,\\ \small $^{1,2}$VA Puget Sound Health Care System, Seattle, WA, USA. }
+\date{}
+\begin{document}
+
+\bibliographystyle{ama1}
+%\bibliographystyle{ieeetr}
+%\bibliographystyle{unsrt}
+
+\maketitle
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+
+\section*{Abstract} \normalsize
+\textbf{Background}: Opioid use is endemic in the US and is associated with morbidity and mortality. The impact of long-term opioid use on non-cancer surgical outcomes remains unknown. This is particularly relevant in joint replacement surgery which are one of the common surgical procedures done in the US.
+This study attempts to  determine whether long-term preoperative use of opioids is associated with adverse outcomes after total knee arthroplasty (TKA).\newline 
+\textbf{Method}:  Retrospective analysis of Veterans Administration patients who had TKA within the VA system over 6 year period. Patients were followed for a year after TKA. Length of time an opioid was prescribed and Morphine Equivalent Dose  was calculated for each patient. Patient prescribed opioids for more than 3 months were assigned to the long-term opioid group. Survival curves were used to compare non opioid and long-term opioid group in terms of time to knee revision or manipulation. Hazard and odds ratio for knee revision and  manipulation were obtained. \newline
+\textbf{Results}:  A total 33,642 patients were included, 54.5\% comprised the long-term opioid group. Of the total number, 1,715(5.09\%) had undergone at least one knee revision, and 1,018(3.02\%) had undergone knee manipulation within one year after TKA surgery. Chronic kidney disease, diabetes, and long-term opioid use were associated with odds ratio of 1.58(1.32-1.89), 1.20(1.07-1.35), 1.21(1.08-1.35) respectively. Long-term opioid use had a hazard ratio of 1.47(1.28-1.56) for knee revision but insignificant for manipulation.\newline
+\textbf{Conclusion}:Long-term opioid use prior to TKA increases the risk for knee revision during the first year after TKA.\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{Introduction}
+Liberal prescription of opioids is prevalent in the US and on the rise~\cite{pmid22786464}. This trend entails risks, and mortality rates associated with prescription of opioids has been widely covered in the national media~\cite{WSJ,SeattleTimes} and in NIH reports and surveys~\cite{pmid22048730,pmid21734633,pmid19875978,pmid22786464}. Moreover, chronic prescription of opioids to relieve musculoskeletal pain in non-cancer patients has been an active topic of discussion in the medical literature, and its efficacy has been questioned~\cite{pmid23371480,pmid23363517,pmid22843539}. The high prevalence of opioid prescription and  its associated morbidity and mortality are so worrisome that many in the medical community have recently called for the establishment of a new discipline of addiction medicine~\cite{pmid25201642}.
+Because of the high prevalence of opioid prescription in the general population, many patients
+ presenting for surgery will have been on long-term opioid therapy prior to surgery. The issue of long-term opioid therapy in total knee arthroplasty (TKA) has been discussed~\cite{pmid25281256,pmid19910619, pmid14612477}, and a wide body of literature is dedicated to risk factors associated with TKA failures~\cite{pmid24944970,pmid21822665}.  
+ With the exception of a single report suggesting an association between preoperative chronic use of opioids and lower Knee Society Scores and a higher complication rate following TKA compared to controls~\cite{pmid22048093,pmid22048108}, not much is known about the epidemiology of chronic pre-surgery use of opioids and their possible impact on orthopedic surgical outcomes.
+Given the prevalence of opioid prescriptions in the general population, it is not surprising that a significant number of VA patients are long-term users of opioid medications. In fact, this  has been the topic of a May 2014 Inspector General report commissioned by the US Senate~\cite{VAOpioids}.
+In this study, we aimed to examine the impact of long-term opioid use on the outcomes after knee joint arthrosplasty. Because knee arthroplasty is a common
+ procedure with a finite degree of surgical trauma variance across facilities, we chose it as a model to test the following hypothesis: that chronic use of opioids in the pre-operative period is associated with early knee revision and manipulation after total knee arthroplasty.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{Methods}
+Following approval from the Seattle VA Institutional Review Board (IRB), the national VA databases (VA INformatics and Computing and Infrastructure- VINCI)~\cite{Vinci} were queried using Current Procedure Terminology (CPT) codes (27446, 27447, 27448, 27438) for all total knee arthroplasties performed within the
+ VA system nationwide between 1/1/2006 and 1/1/2012. In addition, CPT codes for knee manipulation (27570) and for knee revision (27448 ,27487, 27486) were used to identify patients who had these procedures done between 1/1/2006 and 1/1/2013, thus allowing at least one year of follow-up for arthroplasties done by 1/1/2012.
+Patients were matched by patient ID and the operated side.\newline Exclusion criteria were: (1) patients who had both knees replaced at the same time; (2) patients who had only knee revision in the VA system but for whom a primary knee arthroplasty could not be identified for the revised side in the VA system; (3) patients for whom the dates of procedures could not be reconciled, (i.e., revision before arthroplasty on the operated side); (4) patients who were on long-term opioid therapy for whom a morphine equivalent dose could not be calculated; and (5) cases where the operation time was documented as 0 minutes. In addition, for cases where patients had both knees replaced at different times within the study period, only the earlier (first) procedure was included in the cohort. The surgical operative side was text-mined from the procedure description text field using regular expressions~\cite{regex} to account for the different ways in which the operated side was annotated. 
+Abstracted data included demographic information (patient’s age and gender) and his or her weight within six months prior to knee arthroplasty; in addition, relevant comorbidities (diabetes, congestive heart failure, hypertension, chronic kidney disease, smoking, obstructive sleep apnea [OSA], and post-traumatic stress disorder) were abstracted using ICD9 codes.\newline 
+The outpatient pharmacy database was queried for history of outpatient opioid prescriptions during the year before TKA surgery for all patients in the cohort. Dosage, duration of prescription, and brand names were abstracted. Brand names were then converted to generic names using text mining and regular expressions for each patient. A morphine equivalent dose (MED) was calculated for each patient by using a conversion table~\cite{equi}. In order to account for prescription time of opioids and the number of different types of opioids prescribed to a patient, we devised the cumulative time of opioid prescription. The cumulative time was defined as the total time a patient was prescribed any number of opioids in the year before surgery. Patients were considered to have been on long-term opioid therapy if they were prescribed opioids for more than three months of cumulative time.
+\subsection*{Analysis}
+Survival curves were plotted to describe time to first knee manipulation and first knee revision for patients on long-term opioid therapy compared to those who were not. To study the time to first knee manipulation and knee revision, we employed the Kaplan-Meier estimator and the log-rank test to statistically test the difference between the two patient populations. As knee revision may necessitate more than one surgical intervention (e.g., debridement, antibiotics, spacer placement, ex-plant of knee implant, etc.), some patients had undergone several surgical interventions to complete the procedure.  Specifically in this study, we were interested in time to first knee revision or manipulation only.
+The Cox proportional hazard model was used to compute the hazard for knee revision and knee manipulation following TKA. The Cox proportional model was fit using long-term opioid use and known risk factors for knee revision, such as diabetes and age. We report the concordance index satistics for goodness of fit. A logistic regression model was fit to the data to compute the odds ratio for knee revision within one year following TKA in long-term opioid therapy patients.  
+A full model, including all major co-morbidities, age, obesity ($BMI>32$), and history of long-term opioid therapy, was created. Backward model selection was done using Akaike Information Criteria (AIC) to select the best model. From the selected model, odds ratio and 95\% confidence intervals for knee revision in the year following TKA were obtained. Estimates are reported as mean (standard deviation) or median (interquartile range) as appropriate, a p-value less than 0.05 was considered statistically significant.
+The queries and code for processing the data was written by one of the authors (AB) in  SQL, R~\cite{cran} and Python~\cite{python}. 
+The code for the project is available for review at \textit{https://github.com/alon-benari/Clinical-Analysis/tree/TotalKneeReplacementOutcomes }
+
+\section*{Results}
+   
+In the VA system, 39,693 TKA surgeries were performed between 1/1/2006 and 1/1/2012, and 7,097 knee revisions and 1,634 knee manipulations were done between 1/1/2006 and 1/1/2013. Surgical laterality could not be determined in 407 TKAs, 218 revisions, and 76 knee manipulations which were removed. The generic name and opioid dose were abstracted from 165,816 prescriptions; only 54 prescriptions could not be assigned to any generic opioid drug. After exclusion criteria were applied, a total of 33,642 patients were included in the study cohort (Figure 1). Out of the cohort, 1,715 (5.09\%) patients had undergone at least one revision. Since some patients required more than one revision-associated surgical procedure, a total of 2,366 (7.03\%) revisions and revision-related procedures were carried out during the study period. The total number of manipulations was 1,096 (3.2\%). The mean age of the cohort was 64.3 years (9.45); 94\% were males. Height recordings were missing for 4,720 patients, and weight recordings were absent for 824 patients. The BMI was known for 28,902 patients, yielding an average of 32.27(6.02)
+ $kg/m^2$.
+Preoperative long-term opioid use in the year before TKA was found in 18,337 patients (54.5\%), with a  mean  age of 63.5 (9.4) years. The mean age and standard deviation of the age in the non-long-term opioid group was 65.9 (9.45) years. There was no difference in age distribution between the two groups (Figure 2).
+Figure 3 demonstrates that patients on long-term opioid therapy underwent a higher number of knee revisions over the study period compared to patients who were not on long-term opioid use. Of the 1,715 patients who had a knee revision, some patients required more than one revision-related surgery (e.g., irrigation and debridement, spacer placement, graft removal surgery, etc.). Figure 4 demonstrates an association between the number of required surgical interventions and long-term opioid use ($\chi^2 = 41.2, p<0.05$). Long-term opioid therapy  was associated with at least one knee revision. Figure 5 demonstrates the association between the proportion of patients who had any knee revision and were on long-term opioids ($\chi^2= 41.4, p<0.05$), suggesting an association between the two.
+The monthly Morphine Equivalent Dose (MED) was calculated for each patient on long-term opioid therapy, and presented on a natural logarithmic scale (Figure 6a). The median dose was 2400mg/month, with an interquartile range of 637.5-7800 mg/month of oral MED. The median duration of opioid consumption in the long-term opioid therapy group was 11 months (8-15) (Figure 6b).
+ Figure 6c combines figures 6a and 6b into a joint distribution of morphine equivalent dose consumption (Figure 6a) and the cumulative duration (Figure 6b) of long-term opioid therapy in a 2D density plot, demonstrating that most patients were prescribed a median MED of 2400mg/month for a cumulative time of 11 months. Figure 6d details the distribution of different generic opioid formulations prescribed to cohort patients on long-term opioid therapy, revealing that 38.9\% of them were on more than one opioid formulation.
+Survival curves for time to first knee revision suggest that long-term opioid therapy in the year before surgery was associated with early knee revision following TKA ($p<0.05$) (Figure 7). There was no difference between opioid and non-opioid patients in time to knee manipulation (Figure 8). A Cox-proportional hazard model that included age, long-term opioid therapy, and diabetes was fit, yielding the coefficients detailed in Table 1 (concordance=0.625). Based on computations from the Cox-proportional hazard model (Table 1), the relative risk for knee revision is 47\% higher in long-term opioid therapy patients compared to the non-long-term opioid group.  
+Table 2 shows the parameters estimates  from the backward selected logistic regression model fitting (AIC=11320). It includes estimates for long-term opioid use, chronic kidney disease (CKD), obstructive sleep apnea, congestive heart failure, post traumatic stress disorder, diabetes, age, and $BMI >32$. In our cohort, CKD was found to be the strongest predictor for knee revision (OR=1.58 [1.32-1.89]), followed by long-term opioid use (OR=1.21 [1.08-1.35]) and diabetes (OR=1.2 [1.07-1.35]) (Figure 9). Of note, a $BMI>32$ and age were found to be protective factors.
+
+\section*{Disucssion}
+To the best of our knowledge, this is the first study to describe the prevalence of opioid prescription in a large surgical cohort of patients in the year prior to TKA. In this group of more than 30,000 VA patients, we found an association between opioid prescription before TKA and the incidence of knee revision surgery. In addition, we found that long-term opioid therapy was associated with early knee revisions. Of equal importance is the fact that about half of patient undergoing TKA were prescribed non-trivial amounts of  opioids before surgery for about a year before surgery. \newline
+\indent These findings are of significance, given that knee arthroplasty is one of the most common procedures performed in the US; moreover, several reports have predicted an increased demand for primary and revision total knee arthroplasty. In one report~\cite{pmid17403800}, the authors used demographic data, historical surgical data, and life tables to predict that there would be 3.48 million knee arthroplasties by 2030, and that the number of knee revisions would double in the period of 2005-2030. Our study suggests that in light of the current trend of liberal opioid prescription to the population that includes patients requiring knee arthroplasty, demographic projections of future trends in knee arthroplasties may need to consider the effects of prescription opioid use. Moreover, it is possible that a more conservative prescribing policy of opioid prescription may reduce the rate of knee revisions, with an ensuing decrease in associated morbidity and costs. \newline Similar to other studies who found diabetes as a risk factor and age a protective factor in knee revision our study found chronic kidney disease (CKD) and congestive heart failure (CHF) as the leading risk factor for knee revision. Moreover, in the cohort 8.4\% of patients carried the diagnosis of CKD, where 66.9\% carried the diagnosis of CHF with a much wider odds ratio confience interval estimate making the result less easy to interpret. This makes a strong case that the presence of CKD needs to be a serious consideration in decision making before surgery. Additionally we would also wish to point that the odds ration for knee revision for opioids are comprable to those of diabetes which is a known leading risk factor for knee revisions. Contrary to others who found obesity to be a risk factor for knee revision, we found a protective effect. We believe obesity to be a complex feature as obesity determines both patient's mobility and bone loading and thus the wear and tear of bone and knee graft. Future research will need to quantify the degree of mobility of patients to separate the issue of obesity per-se and its interaction with mobility to exert an effect on bone and graft mechanics.\newline
+\indent Others have shown long-term opioids use to be associated with adverse surgical outcomes in cancer patients~\cite{Lungs1,prostate1}. To the best of our knowledge, our study is the first one to report adverse surgical outcomes in non-cancer surgery due to long-term use of opioids. It is not clear what is the mechanism that underlies this clinical observation. Animal studies have shown opioids to interacts with endocrine system~\cite{endo1, endo2,OPIAD1,OPIAD2,endo3} affecting bone metabolism. Opioids have also been shown to modulate immune system response~\cite{immuno1,immuno2,immuno3,immuno4}. Finally, revision knee arthroplasty might also result from surgeons reacting to persistent complaints of various symptoms that are exacerbated in those on long-term opioid therapy. \newline Future work will need to examine opioid prescription patterns in hip joint replacement, opioid prescription patterns where opioid prescription was held before joint replacement surgery and compare the results with those of this study. 
+\section*{Acknowledgments}
+Authors wish to thank the VA for lending the technical support in the execution of this study. Special thanks are extended to Ms Rebecca Felkey for her assistance in editing the manuscript.
+\bibliography{Biblist}
+%1 Figures
+\begin{center}
+\begin{figure}
+\includegraphics[scale=0.5]{FlowChartAnes.pdf}
+\caption{Flow chart describing the formation of patient cohort. Numbers outside the squares represent the number of entries removed.}
+\end{figure}
+\end{center}
+%
+%2
+\newpage
+\begin{center}
+\begin{figure}
+\includegraphics[scale=0.5]{age_hist.pdf}
+\caption{Age distribution in the cohort, color coded for long-term opioid usage
+          in the year before TKA. There was no difference in age between the two groups;
+          the mean age of the long-term opioid group was 63.02 years (9.2), versus 65.9 (9.4) years in the non-opioid group.}
+          
+\end{figure}		
+\end{center}
+%3
+\newpage
+\begin{center}
+\begin{figure}
+\includegraphics[scale=0.5]{opioid_rev.pdf}
+\caption{Cumulative number of knee revisions during the study period, color coded
+          for patients who were on long-term opioid therapy. Patients on long term opioid
+          therapy underwent a higher number of knee revisions over the study period
+          compared to patients who were not on long-term opioid therapy.}
+\end{figure}		
+\end{center}
+
+% 4
+\newpage
+\begin{center}
+\begin{figure}
+        \includegraphics[scale=0.5]{num_rev.pdf}
+                \caption{Number of knee revision related surgeries (e.g. irrigation and debridement, spacer placement, explant of knee implant etc.) color coded for long-term opioid therapy. This demonstrates that patients who were on long-term opioid therapy were more likely to have more revision related surgeries than patients who were not on long-term opioid therapy, ($\chi^2 = 41.2, p<0.05$)}
+\end{figure}		
+\end{center}
+%5
+\newpage
+\begin{center}
+\begin{figure}
+\includegraphics[scale=0.5]{bar_fig.pdf}
+
+\caption{Proportion of patients having knee revision and not having knee revision color coded for long-term opioid use ($\chi^2 = 41.3, p<0.05$). }
+\end{figure}
+\end{center}
+%6
+\newpage
+\begin{center}
+\begin{figure}
+\includegraphics[scale=0.5]{2d_hist.pdf}
+
+\caption{Characteristics of opioid consumption in patients who were on long-term opioid therapy in the year before TKA. (a) Distribution of Morphine Equivalent Dose (MED) interquartile range (IQR) 637.5-7800mg/month.  (b) Distribution of cumulative time in patients who were on long-term opioids before surgery.  (c) 2D density plot overlaid on a scatterplot combining (a) and
+          (b), which describes the joint probability of MED and cumulative time.  This
+          shows that most patients were prescribed MED of 2.4 grams for a period of
+          11 months before surgery.  (d) Shows the number of different type of generic
+          opioid formulations prescribed to patients in the year before TKA.}
+\end{figure}
+\end{center}
+%7
+\newline
+
+\begin{center}
+	\begin{figure}
+		\centering
+			\includegraphics[scale=0.5]{KM_rev.pdf} % report increase from basehazard. coxph.
+			\caption{Survival curves for time to knee revision within a year of TKA on the ipsilateral side demonstrating the difference in time to a knee revision surgery.}
+	\end{figure}
+\end{center}
+%8
+\newline
+
+\begin{center}
+	\begin{figure}
+		\centering
+			\includegraphics[scale=0.5]{KM_mnp.pdf}
+			\caption{Survival curves for time to manipulation within a year following TKA on the same operated side showing no difference between the two patient groups.}
+	\end{figure}
+\end{center}
+
+
+\begin{center}
+	\begin{figure}
+		\centering
+			\includegraphics[scale=0.5]{select_model.pdf}
+			\caption{Odds ratio and confidence intervals for risk factor associated with knee revision. This shows CHF, CKD and long term opioid use to be three leading risk factors for knee revision. }
+	\end{figure} 
+\end{center}
+
+\end{document}
