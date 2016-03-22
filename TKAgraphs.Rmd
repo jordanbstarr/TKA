@@ -5,11 +5,11 @@ library("ggplot2")
 library("dplyr")
 library(grid)
 library(gridExtra)
-data <- read.csv("WorkDf5.csv", sep=";")
+library(RColorBrewer)
+data <- read.csv("~/Desktop/Research/TKA Revision/WorkDf5.csv", sep=";")
 data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
-data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
 data$MEDperDay <- data$MEDperMonth/(365/12)
-data$realChronic <- ifelse(data$TimeBefore > 2 & data$MEDperDay >= 2, 1, 0)
+data$realChronic <- ifelse(data$TimeBefore > 2 & data$MEDperDay >= 7.5, 1, 0)
 data$highMED <- ifelse(data$MEDperDay > 100, 1, 0)
 data$user <- ifelse(data$MEDperDay > 0,1,0)
 data$ht <- ifelse(data$ht < 48 | data$ht > 86, NA, data$ht)
@@ -65,12 +65,12 @@ sum(data2$OSA, na.rm=T)/ nrow(data2)
 sum(data2$PTSD, na.rm=T)/ nrow(data2)
 
 #P values
-prop.test(x=c(.955*14077,.937*5122,.936*14450), n=c(14077, 5122, 14450))
-prop.test(x=c(.083*14077,.096*5122,.082*14450), n=c(14077, 5122, 14450))
-prop.test(x=c(.313*14077,.320*5122,.320*14450), n=c(14077, 5122, 14450))
-prop.test(x=c(.665*14077,.675*5122,.653*14450), n=c(14077, 5122, 14450))
-prop.test(x=c(.051*14077,.060*5122,.066*14450), n=c(14077, 5122, 14450))
-prop.test(x=c(.127*14077,.157*5122,.201*14450), n=c(14077, 5122, 14450))
+prop.test(x=c(.955*14077,.935*10330,.937*9235), n=c(14077, 10330, 9235))
+prop.test(x=c(.083*14077,.093*10330,.077*9235), n=c(14077, 10330, 9235))
+prop.test(x=c(.313*14077,.322*10330,.317*9235), n=c(14077, 10330, 9235))
+prop.test(x=c(.665*14077,.667*10330,.649*9235), n=c(14077, 10330, 9235))
+prop.test(x=c(.051*14077,.066*10330,.062*9235), n=c(14077, 10330, 9235))
+prop.test(x=c(.127*14077,.167*10330,.215*9235), n=c(14077, 10330, 9235))
 
 data$usergrp <- ifelse(data$user == 0, 0, 1)
 data$usergrp <- ifelse(data$realChronic == 1, 2, data$usergrp)
@@ -93,9 +93,9 @@ year <- c(2006, 2007, 2008, 2009, 2010, 2011)
 overall <- c(5296, 5103, 5551, 5751, 6027, 5914)
 users <- c(.598,.570,.571,.584,.581,.583)
 median <- c(1.47,1.23,1.21,1.41,1.32,1.41)
-chronic <- c(.434, .427,.422,.433,.432,.43)
-chronMed <- c(10.06,10.99,10.89,11.10,12.1,13.15)
-highMED <- c(2.1,2.2,2.4,1.8,1.9,2.1)
+chronic <- c(.262, .264,.261,.276,.289,.290)
+chronMed <- c(18.6,18.9,19.7,19.3,20.7,20.8)
+highMED <- c(2.2,2.2,2.4,1.8,2.0,2.1)
 fit1 <- lm(overall ~ year)
 fit2 <- lm(users ~ year)
 fit3 <- lm(median ~ year)
@@ -112,27 +112,93 @@ summary(fit6)
 Bar Graph
 ```{r}
 datagrp3 <- group_by(data, DIVISION)
-barData1 <- summarize(datagrp3, N = n(), Users = sum(user, na.rm=T)/n(), Chronic = sum(realChronic, na.rm=T)/n(), HighMED = sum(highMED, na.rm=T)/n(), Median = median(MEDperDay, na.rm=T))
+barData1 <- summarize(datagrp3, N = n(), Users = 100*sum(user, na.rm=T)/n(), Chronic = 100*sum(realChronic, na.rm=T)/n(), HighMED = 100*sum(highMED, na.rm=T)/n(), Median = median(MEDperDay, na.rm=T))
 barData1 <- barData1[barData1$N > 49,]
 datagrp4 <- group_by(data[data$realChronic == 1,], DIVISION)
 barData2 <- summarize(datagrp4, N = n(), Chron_Median = median(MEDperDay, na.rm=T))
 barData2 <- barData2[barData2$N > 24,]
 
-barDF1 <- data.frame(Outcome = c(rep("Opioid Users", 2), rep("Chronic Opioid\nUsers", 2), rep(">100 MEs\nper Day", 2)), Group = c(rep(c("5th %", "95th %"),3)))
-barDF1$percent <- c(quantile(barData1$Users, c(.05,.95)), quantile(barData1$Chronic, c(.05,.95)), quantile(barData1$HighMED, c(.05,.95)))
+barDF1 <- data.frame(Outcome = c(rep("Opioid Users", 2), rep("Chronic Opioid\nUsers", 2), rep(">100 MEDs\nPer Day", 2)), Group = c(rep(c("5th %", "95th %"),3)))
+barDF1$percent <- c(100*quantile(barData1$Users, c(.05,.95)), 100*quantile(barData1$Chronic, c(.05,.95)), 100*quantile(barData1$HighMED, c(.05,.95)))
 
-barDF2 <- data.frame(Outcome = c(rep("Overall\nMedian MEs", 2), rep("Chronic User\nMedian MEs", 2)), Group = c(rep(c("5th %", "95th %"),2)))
+barDF2 <- data.frame(Outcome = c(rep("Overall\nMedian MEDs", 2), rep("Chronic User\nMedian MEDs", 2)), Group = c(rep(c("5th %ile Divsion", "95th %ile Division"),2)))
 barDF2$median <- c(quantile(barData1$Median, c(.05,.95)), quantile(barData2$Chron_Median, c(.05,.95)))
 
 barDF1$Outcome <- factor(barDF1$Outcome, levels=barDF1$Outcome)
 barDF2$Outcome <- factor(barDF2$Outcome, levels=barDF2$Outcome)
-g1 <- ggplot(barDF1, aes(Outcome, percent, fill=Group)) + geom_bar(position="dodge", stat="identity", color = "black") + theme_bw(base_size=18) + scale_fill_brewer() + labs(x="", y ="Rate") + theme(legend.title=element_blank()) + coord_cartesian(ylim=c(0,.7)) + scale_y_continuous(breaks=seq(0,.7,.1)) + guides(fill=FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+g1 <- ggplot(barDF1, aes(Outcome, percent, fill=Group)) + geom_bar(position="dodge", stat="identity", color = "black") + theme_bw(base_size=18) + scale_fill_brewer() + labs(x="", y ="Percent") + theme(legend.title=element_blank()) + coord_cartesian(ylim=c(0,70)) + scale_y_continuous(breaks=seq(0,70,10)) + guides(fill=FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
-g2 <- ggplot(barDF2, aes(Outcome, median, fill=Group)) + geom_bar(position="dodge", stat="identity", color = "black") + theme_bw(base_size=18) + coord_cartesian(ylim=c(0,18)) + scale_fill_brewer() + labs(x="", y ="Milligrams") + theme(legend.title=element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + guides(fill = guide_legend(override.aes = list(colour = NULL))) + scale_y_continuous(breaks=seq(0,18,3))
+g2 <- ggplot(barDF2, aes(Outcome, median, fill=Group)) + geom_bar(position="dodge", stat="identity", color = "black") + theme_bw(base_size=18) + coord_cartesian(ylim=c(0,30)) + scale_fill_brewer() + labs(x="", y ="Milligrams") + theme(legend.title=element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + guides(fill = guide_legend(override.aes = list(colour = NULL))) + scale_y_continuous(breaks=seq(0,30,5))
 
-grid.arrange(g1, g2, ncol = 2, main = textGrob("Variability in Prescription Opioid Use by VA Medical Centers", gp=gpar(fontsize=24)))
+grid.arrange(g1, g2, ncol = 2, main = textGrob("VA Division Variability in Prescription Opioid Use Prior to TKA", gp=gpar(fontsize=24)))
 ```
+### Formatting code
+```{r}
+fte_theme <- function() {
+      
+      # Generate the colors for the chart procedurally with RColorBrewer
+      palette <- brewer.pal("Greys", n=9)
+      color.background = palette[1]
+      color.grid.major = palette[3]
+      color.axis.text = palette[6]
+      color.axis.title = palette[7]
+      color.title = palette[9]
+      
+      # Begin construction of chart
+      theme_bw(base_size=9) +
+        
+      # Set the entire chart region to a light gray color
+      theme(panel.background=element_rect(fill=color.background, color=color.background)) +
+      theme(plot.background=element_rect(fill=color.background, color=color.background)) +
+      theme(panel.border=element_rect(color=color.background)) +
+      
+      # Format the grid
+      theme(panel.grid.major=element_line(color=color.grid.major,size=.25)) +
+      theme(panel.grid.minor=element_blank()) +
+      theme(axis.ticks=element_blank()) +
+      
+      # Format the legend, but hide by default
+      theme(legend.position="right") +
+      theme(legend.background = element_rect(fill=color.background)) +
+      theme(legend.text = element_text(size=20,color=color.axis.title)) +
+      theme(legend.title = element_text(size=16)) +                      
+      
+      # Set title and axis labels, and format these and tick marks
+      theme(plot.title=element_text(color=color.title, size=24, vjust=1.25)) +
+      theme(axis.text.x=element_text(size=20,color=color.axis.text)) +
+      theme(axis.text.y=element_text(size=20,color=color.axis.text)) +
+      theme(axis.title.x=element_text(size=20,color=color.axis.title, vjust=0)) +
+      theme(axis.title.y=element_text(size=20,color=color.axis.title, vjust=1.25)) +
+      
+      # Plot margins
+      theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"))
+    }
+```
+Experiment with plots
+```{r}
+n <- nrow(barData1)
+l <- nrow(barData2)
+jitData1 <- data.frame(Divisions = c(rep("Any Opioid\nUse", n), rep("Chronic\nUsers", n), rep(">100\nMEDs", n)))
+jitData1$Percent <- c(barData1$Users, barData1$Chronic, barData1$HighMED)
 
+b1<-ggplot(jitData1, aes(Divisions, Percent)) + 
+  geom_jitter(alpha=I(3/4), aes(colour = Divisions), cex=3) +
+  fte_theme() +
+  theme(legend.position = "none") + 
+  labs(title = "a)") + 
+  theme(legend.position = "none", plot.title = element_text(hjust = 0))
+
+jitData2 <- data.frame(Divisions = c(rep("Overall\nMedian MEDs", n), rep("Chronic User\nMedian MEDs", l)))
+jitData2$Milligrams <- c(barData1$Median, barData2$Chron_Median)
+
+b2<-ggplot(jitData2, aes(Divisions, Milligrams)) + 
+  geom_jitter(alpha=I(3/4), aes(colour = Divisions), cex=3) +
+  fte_theme() +
+  labs(title = "b)") + 
+  theme(legend.position = "none", plot.title = element_text(hjust = 0))
+
+grid.arrange(b1, b2, ncol = 2, main = textGrob("VA Division Variability in Opioid Prescribing Prior to TKA", gp=gpar(fontsize=24)))
+```
 State analysis
 ```{r}
 Mode <- function(x) {

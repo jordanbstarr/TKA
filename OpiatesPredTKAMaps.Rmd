@@ -17,8 +17,8 @@ library("maptools")
 library("rgeos")
 library("dplyr")
 library("grid")
-data <- read.csv("WorkDf5.csv", sep=";")
-statecodes <- read.delim("./state.txt", sep="|", header=T)
+data <- read.csv("~/Desktop/Research/TKA Revision/WorkDf5.csv", sep=";")
+statecodes <- read.delim("~/Desktop/Research/TKA Revision/state.txt", sep="|", header=T)
 statecodes$STATE_NAME <- as.character(statecodes$STATE_NAME)
 statecodes$STATE <- formatC(statecodes$STATE, width = 2, flag = '0')
 ```
@@ -33,14 +33,13 @@ Create MEDperDay variables and remove extreme outliers
 ```{r}
 data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
 ggplot(data=data, aes(data$MEDperMonth)) + geom_histogram() + coord_cartesian(ylim=c(0,5)) + scale_x_continuous(breaks=seq(50000,150000,10000))
-data$MEDperMonth <- ifelse(data$MEDperMonth > 80000, NA, data$MEDperMonth)
 data$MEDperDay <- data$MEDperMonth/(365/12)
 data$highMED <- ifelse(data$MEDperDay > 100, 1, 0)
 data$user <- ifelse(data$MEDperDay > 0, 1, 0)
 ```
 Create chronic variable
 ```{r}
-data$chronic <- ifelse(data$TimeBefore > 2 & data$MEDperDay >= 2, 1, 0)
+data$chronic <- ifelse(data$TimeBefore > 2 & data$MEDperDay >= 7.5, 1, 0)
 # For Chronic User Median MED map only
 # data <- data[data$chronic == 1,]
 ```
@@ -196,6 +195,11 @@ chronMedMEDMapDF <- rmSmallSamp7()
 chronMedMEDMapDF$STATEFP <- as.factor(chronMedMEDMapDF$STATEFP)
 chronMedMEDMapDF$NAME <- as.factor(chronMedMEDMapDF$NAME)
 ```
+County-level variation data
+```{r}
+quantile(userMapDF$User_Rate, probs=c(.05, .95), na.rm=T)
+quantile(chronicMapDF$Chronic_Use_Rate, probs=c(.05, .95), na.rm=T)
+```
 Load map data and combine with revision data
 ```{r}
 counties <- readOGR(dsn = "./cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
@@ -257,11 +261,11 @@ counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & c
 
 Create Chronic Opiate Use Rate Map
 ```{r}
-b <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Chronic_Use_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Rate of Patients Using Opiates Chronically \n Preoperatively by County", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .3))
+b <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Chronic_Use_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Chronic Opioid Use Prior to Total Knee Arthroplasty", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .25))
 
-#PNG
+#TIFF
 ppi <- 300
-png("Chronic.png", width = 6*ppi, height = 6*ppi, res = ppi)
+tiff("EpiChronic.tiff", width = 6*ppi, height = 5*ppi, res = ppi)
 b
 dev.off()
 

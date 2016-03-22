@@ -1,0 +1,448 @@
+## Load Packages & Data
+```{r}
+library("ggplot2")
+library("ggmap")
+library("plyr")
+library("rgdal")
+library("scales")
+library("Cairo")
+library("maptools")
+library("rgeos")
+library("dplyr")
+library("grid")
+library("gridExtra")
+library("RColorBrewer")
+
+# TKA data
+data <- read.csv("WorkDf5.csv", sep=";")
+# State FIP code data
+statecodes <- read.delim("state.txt", sep="|", header=T)
+# US county map drawing data
+counties <- readOGR(dsn = "cb_2014_us_county_500k", layer = "cb_2014_us_county_500k")
+```
+
+## Clean Data
+
+Create new opioid variables
+```{r}
+data$MEDperMonth <- ifelse(data$TimeBefore==0, 0, data$med_load/data$TimeBefore)
+data$MEDperDay <- data$MEDperMonth/(365/12)
+data$chronic <- ifelse(data$TimeBefore > 2 & data$MEDperDay >= 5, 1, 0)
+data$highMED <- ifelse(data$MEDperDay > 100, 1, 0)
+data$user <- ifelse(data$MEDperDay > 0,1,0)
+```
+Remove spurious height and weight values, then create BMI
+```{r}
+data$ht <- ifelse(data$ht < 48 | data$ht > 86, NA, data$ht)
+data$wt <- ifelse(data$wt < 80 | data$wt > 600, NA, data$wt)
+data <- mutate(data, BMI = (wt/2.2)/(ht*2.54/100)^2)
+```
+
+## Create Table 1
+Results for all patients
+```{r}
+# Age
+mean(data$Age)
+sd(data$Age)
+# BMI
+mean(data$BMI, na.rm=T)
+sd(data$BMI, na.rm=T)
+# Male %
+nrow(data[data$gender == "M",])/ nrow(data)
+# CKD
+sum(data$CKD, na.rm=T)/ nrow(data)
+# DM
+sum(data$Diabetes, na.rm=T)/ nrow(data)
+# HTN
+sum(data$HTN, na.rm=T)/ nrow(data)
+# OSA
+sum(data$OSA, na.rm=T)/ nrow(data)
+# PTSD
+sum(data$PTSD, na.rm=T)/ nrow(data)
+```
+Results for non-users
+```{r}
+# Subset to non-users
+data2 <- filter(data, MEDperDay == 0)
+# Age
+mean(data2$Age)
+sd(data2$Age)
+# BMI
+mean(data2$BMI, na.rm=T)
+sd(data2$BMI, na.rm=T)
+# Male %
+aMale <- nrow(data2[data2$gender == "M",])/ nrow(data2)
+aMale
+# CKD
+aCKD <- sum(data2$CKD, na.rm=T)/ nrow(data2)
+aCKD
+# DM
+aDM <- sum(data2$Diabetes, na.rm=T)/ nrow(data2)
+aDM
+# HTN
+aHTN <- sum(data2$HTN, na.rm=T)/ nrow(data2)
+aHTN
+# OSA
+aOSA <- sum(data2$OSA, na.rm=T)/ nrow(data2)
+aOSA
+# PTSD
+aPTSD <- sum(data2$PTSD, na.rm=T)/ nrow(data2)
+aPTSD
+```
+Results for non-chronic opioid users
+```{r}
+# Subset
+data2 <- filter(data, MEDperDay > 0 & chronic == 0)
+# Age
+mean(data2$Age)
+sd(data2$Age)
+# BMI
+mean(data2$BMI, na.rm=T)
+sd(data2$BMI, na.rm=T)
+# Male %
+bMale <- nrow(data2[data2$gender == "M",])/ nrow(data2)
+bMale
+# CKD
+bCKD <- sum(data2$CKD, na.rm=T)/ nrow(data2)
+bCKD
+# DM
+bDM <- sum(data2$Diabetes, na.rm=T)/ nrow(data2)
+bDM
+# HTN
+bHTN <- sum(data2$HTN, na.rm=T)/ nrow(data2)
+bHTN
+# OSA
+bOSA <- sum(data2$OSA, na.rm=T)/ nrow(data2)
+bOSA
+# PTSD
+bPTSD <- sum(data2$PTSD, na.rm=T)/ nrow(data2)
+bPTSD
+```
+Results for chronic users
+```{r}
+# Subset
+data2 <- filter(data, chronic == 1)
+# Age
+mean(data2$Age)
+sd(data2$Age)
+# BMI
+mean(data2$BMI, na.rm=T)
+sd(data2$BMI, na.rm=T)
+# Male %
+cMale <- nrow(data2[data2$gender == "M",])/ nrow(data2)
+cMale
+# CKD
+cCKD <- sum(data2$CKD, na.rm=T)/ nrow(data2)
+cCKD
+# DM
+cDM <- sum(data2$Diabetes, na.rm=T)/ nrow(data2)
+cDM
+# HTN
+cHTN <- sum(data2$HTN, na.rm=T)/ nrow(data2)
+cHTN
+# OSA
+cOSA <- sum(data2$OSA, na.rm=T)/ nrow(data2)
+cOSA
+# PTSD
+cPTSD <- sum(data2$PTSD, na.rm=T)/ nrow(data2)
+cPTSD
+```
+p values
+```{r}
+# number of non-users
+a <- nrow(filter(data, MEDperDay == 0))
+# number of non-chronic users
+b <- nrow(filter(data, MEDperDay > 0 & chronic == 0))
+# number of chronic users
+c <- nrow(filter(data, chronic == 1))
+
+# Male %
+prop.test(x=c(aMale*a,bMale*b,cMale*c), n=c(a, b, c))
+# CKD
+prop.test(x=c(aCKD*a,bCKD*b,cCKD*c), n=c(a, b, c))
+# DM
+prop.test(x=c(aDM*a,bDM*b,cDM*c), n=c(a, b, c))
+# HTN
+prop.test(x=c(aHTN*a,bHTN*b,cHTN*c), n=c(a, b, c))
+# OSA
+prop.test(x=c(aOSA*a,bOSA*b,cOSA*c), n=c(a, b, c))
+# PTSD
+prop.test(x=c(aPTSD*a,bPTSD*b,cPTSD*c), n=c(a, b, c))
+
+# Group patients by use
+data$usergrp <- ifelse(data$user == 0, 0, 1)
+data$usergrp <- ifelse(data$chronic == 1, 2, data$usergrp)
+
+# Age ANOVA
+fit1 <- aov(data$Age ~ data$usergrp)
+summary(fit1)
+
+# BMI ANOVA
+fit2 <- aov(data$BMI ~ data$usergrp)
+summary(fit2)
+```
+
+## Create Table 2
+
+Stratify patients by year
+```{r}
+datagrp <- group_by(data, TKAYear)
+data$TKAYear <- as.factor(data$TKAYear)
+```
+Results for all patients
+```{r}
+table1 <- summarise(datagrp, count = n(), users = sum(user, na.rm=T)/n(), medMED = median(MEDperDay, na.rm=T), IQR25 = quantile(MEDperDay, na.rm=T)[2], IQR75 = quantile(MEDperDay, na.rm=T)[4], chronic = sum(chronic, na.rm=T)/n(), hundred = sum(highMED, na.rm=T)/n())
+table1
+```
+Results for chronic users
+```{r}
+datagrp2 <- filter(datagrp, chronic == 1)
+table2 <- summarise(datagrp2, chron_med_MED = median(MEDperDay, na.rm=T), IQR25 = quantile(MEDperDay, na.rm=T)[2], IQR75 = quantile(MEDperDay, na.rm=T)[4] )
+table2
+```
+P values
+```{r}
+# Surgeries/ year
+fit1 <- lm(table1$count ~ table1$TKAYear)
+summary(fit1)
+# Opioid users/ year
+fit2 <- lm(table1$users ~ table1$TKAYear)
+summary(fit2)
+# Median MEDs among all users/ year
+fit3 <- lm(table1$medMED ~ table1$TKAYear)
+summary(fit3)
+# Chronic users/ year
+fit4 <- lm(table1$chronic ~ table1$TKAYear)
+summary(fit4)
+# Median MEDs among chronic users/ year
+fit5 <- lm(table2$chron_med_MED ~ table1$TKAYear)
+summary(fit5)
+# Percent of patients using 100+ MEDs/ year
+fit6 <- lm(table1$hundred ~ table1$TKAYear)
+summary(fit6)
+```
+
+## Bar Graph
+```{r}
+# Group by division
+datagrp3 <- group_by(data, DIVISION)
+
+# For each division, find count, % using opioids, % chronic, % >100 MEDs, and median MEDs 
+barData1 <- summarize(datagrp3, N = n(), Users = 100*sum(user, na.rm=T)/n(), Chronic = 100*sum(chronic, na.rm=T)/n(), HighMED = 100*sum(highMED, na.rm=T)/n(), Median = median(MEDperDay, na.rm=T))
+# Remove divisions with less than 50 patients
+barData1 <- barData1[barData1$N > 49,]
+
+# Subset with just chronic users
+datagrp4 <- group_by(data[data$chronic == 1,], DIVISION)
+# Find the median MEDs/ day in chronic users
+barData2 <- summarize(datagrp4, N = n(), Chron_Median = median(MEDperDay, na.rm=T))
+# Remove divisions with < 25 patients
+barData2 <- barData2[barData2$N > 24,]
+
+# Create a data frame for graph a
+barDF1 <- data.frame(Outcome = c(rep("Opioid Users", 2), rep("Chronic Opioid\nUsers", 2), rep(">100 MEDs\nPer Day", 2)), Group = c(rep(c("5th %", "95th %"),3)))
+barDF1$Outcome <- factor(barDF1$Outcome, levels=barDF1$Outcome)
+# Add in values for the 5th%ile and 95th%ile divisions for % users, % chronic users, and % >100 MEDs
+barDF1$percent <- c(quantile(barData1$Users, c(.05,.95)), quantile(barData1$Chronic, c(.05,.95)), quantile(barData1$HighMED, c(.05,.95)))
+
+# Create a data frame for graph b
+barDF2 <- data.frame(Outcome = c(rep("Overall\nMedian MEDs", 2), rep("Chronic User\nMedian MEDs", 2)), Group = c(rep(c("5th %ile Divsion", "95th %ile Division"),2)))
+barDF2$Outcome <- factor(barDF2$Outcome, levels=barDF2$Outcome)
+# Add in values for the 5th%ile and 95th%ile divisions for median MEDs and chronic user median MEDs
+barDF2$median <- c(quantile(barData1$Median, c(.05,.95)), quantile(barData2$Chron_Median, c(.05,.95)))
+
+# Plot a
+g1 <- ggplot(barDF1, aes(Outcome, percent, fill=Group)) + geom_bar(position="dodge", stat="identity", color = "black") + theme_bw(base_size=18) + scale_fill_brewer() + labs(x="", y ="Percent") + theme(legend.title=element_blank()) + coord_cartesian(ylim=c(0,70)) + scale_y_continuous(breaks=seq(0,70,10)) + guides(fill=FALSE) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+# Plot b
+g2 <- ggplot(barDF2, aes(Outcome, median, fill=Group)) + geom_bar(position="dodge", stat="identity", color = "black") + theme_bw(base_size=18) + coord_cartesian(ylim=c(0,30)) + scale_fill_brewer() + labs(x="", y ="Milligrams") + theme(legend.title=element_blank()) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + guides(fill = guide_legend(override.aes = list(colour = NULL))) + scale_y_continuous(breaks=seq(0,30,5))
+
+# Final plot
+grid.arrange(g1, g2, ncol = 2, main = textGrob("VA Division Variability in Prescription Opioid Use Prior to TKA", gp=gpar(fontsize=24)))
+```
+
+
+## Jitter graph
+
+Function to create "Five Thirty Eight" themed graphic
+```{r}
+fte_theme <- function() {
+      
+      # Generate the colors for the chart procedurally with RColorBrewer
+      palette <- brewer.pal("Greys", n=9)
+      color.background = palette[1]
+      color.grid.major = palette[3]
+      color.axis.text = palette[6]
+      color.axis.title = palette[7]
+      color.title = palette[9]
+      
+      # Begin construction of chart
+      theme_bw(base_size=9) +
+        
+      # Set the entire chart region to a light gray color
+      theme(panel.background=element_rect(fill=color.background, color=color.background)) +
+      theme(plot.background=element_rect(fill=color.background, color=color.background)) +
+      theme(panel.border=element_rect(color=color.background)) +
+      
+      # Format the grid
+      theme(panel.grid.major=element_line(color=color.grid.major,size=.25)) +
+      theme(panel.grid.minor=element_blank()) +
+      theme(axis.ticks=element_blank()) +
+      
+      # Format the legend, but hide by default
+      theme(legend.position="right") +
+      theme(legend.background = element_rect(fill=color.background)) +
+      theme(legend.text = element_text(size=20,color=color.axis.title)) +
+      theme(legend.title = element_text(size=16)) +                      
+      
+      # Set title and axis labels, and format these and tick marks
+      theme(plot.title=element_text(color=color.title, size=24, vjust=1.25)) +
+      theme(axis.text.x=element_text(size=20,color=color.axis.text)) +
+      theme(axis.text.y=element_text(size=20,color=color.axis.text)) +
+      theme(axis.title.x=element_text(size=20,color=color.axis.title, vjust=0)) +
+      theme(axis.title.y=element_text(size=20,color=color.axis.title, vjust=1.25)) +
+      
+      # Plot margins
+      theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"))
+    }
+```
+Jitter graph
+```{r}
+# Plot a and b row counts used for creating dataframes
+n <- nrow(barData1)
+l <- nrow(barData2)
+
+# Plot a
+jitData1 <- data.frame(Divisions = c(rep("Any Opioid\nUse", n), rep("Chronic\nUsers", n), rep(">100\nMEDs", n)))
+jitData1$Percent <- c(barData1$Users, barData1$Chronic, barData1$HighMED)
+
+b1<-ggplot(jitData1, aes(Divisions, Percent)) + 
+  geom_jitter(alpha=I(3/4), aes(colour = Divisions), cex=3) +
+  fte_theme() +
+  theme(legend.position = "none") + 
+  labs(title = "a)") + 
+  theme(legend.position = "none", plot.title = element_text(hjust = 0))
+
+# Plot b
+jitData2 <- data.frame(Divisions = c(rep("Overall\nMedian MEDs", n), rep("Chronic User\nMedian MEDs", l)))
+jitData2$Milligrams <- c(barData1$Median, barData2$Chron_Median)
+
+b2<-ggplot(jitData2, aes(Divisions, Milligrams)) + 
+  geom_jitter(alpha=I(3/4), aes(colour = Divisions), cex=3) +
+  fte_theme() +
+  labs(title = "b)") + 
+  theme(legend.position = "none", plot.title = element_text(hjust = 0))
+
+# Combine plots
+grid.arrange(b1, b2, ncol = 2, main = textGrob("VA Division Variability in Opioid Prescribing Prior to TKA", gp=gpar(fontsize=24)))
+```
+
+## Division level results
+```{r}
+# 5th %ile and 95th %ile divisions for chronic use rate
+quantile(barData1$Chronic, probs=c(.05, .95), na.rm=T)
+```
+
+## Map
+
+Format statecode values
+```{r}
+statecodes$STATE_NAME <- as.character(statecodes$STATE_NAME)
+statecodes$STATE <- formatC(statecodes$STATE, width = 2, flag = '0')
+```
+Format dataset location variables
+```{r}
+data$State <- as.character(data$State)
+data$State <- gsub("INDIA0", "Indiana", data$State)
+data$State <- gsub("SOUTH CAROLI0", "South Carolina", data$State)
+data$State <- gsub("ARIZO0", "Arizona", data$State)
+data$State <- gsub("NORTH CAROLI0", "North Carolina", data$State)
+data$State <- gsub("LOUISIA0", "Louisiana", data$State)
+data$State <- gsub("MONTA0", "Montana", data$State)
+```
+Function to format all state and county names appropriately
+```{r}
+simpleCap <- function(x) {
+        if (x == "DISTRICT OF COLUMBIA") {
+              return("District of Columbia")  
+        } else {
+                s <- tolower(x)
+                s <- strsplit(s, " ")[[1]]
+                paste(toupper(substring(s, 1,1)), substring(s, 2), sep="", collapse=" ")
+        }
+}
+data$State <- sapply(data$State, simpleCap)
+data$State <- gsub("*missing*", NA, data$State)
+```
+Function to convert state names to FIP codes
+```{r}
+recode <- function (x) {
+        if (is.na(x) | x == "Armed Forces Af,eu,me,ca" | x == "Armed Forces Amer (exc Ca0da)") {
+                y <- NA
+        } else if (x == "Virginia") {
+              y <- 51
+        } else {
+                y <- statecodes$STATE[grep(x, statecodes$STATE_NAME)]
+        }
+        y
+}
+data$STATEFP <- sapply(data$State, recode)
+```
+Format county values for mapping
+```{r}
+data$county <- as.character(data$county)
+data$NAME <- sapply(data$county, simpleCap)
+data$NAME <- gsub("0", NA, data$NAME)
+```
+Remove counties with less than 15 patients
+```{r}
+# Group data by state and county
+datagrp <- group_by(data, STATEFP, NAME)
+
+# Find the chronic use rate for all counties
+chronicMapDF <- summarize(datagrp, Chronic_Use_Rate = mean(chronic), Count = n())
+
+# Function to remove all counties with less than "min"
+min <- 15
+rmSmallSamp <- function() {
+        for (i in 1:nrow(chronicMapDF)) {
+                if (chronicMapDF$Count[i] < min) {
+                        chronicMapDF$Chronic_Use_Rate[i] <- NA
+                } else {next}
+        }
+        chronicMapDF
+}
+chronicMapDF <- rmSmallSamp() 
+chronicMapDF$STATEFP <- as.factor(chronicMapDF$STATEFP)
+chronicMapDF$NAME <- as.factor(chronicMapDF$NAME)
+```
+Combine US county map data with chronic opioid use summary data
+```{r}
+# Label all line data by associated county
+counties@data$id <- rownames(counties@data)
+# Combine line data with chronic opioid use data by county name
+counties@data <- join(counties@data, chronicMapDF, by=c("STATEFP", "NAME"))
+# Convert this combined dataset to a dataset ggplot can use
+counties.df <- fortify(counties)
+# I forgot what this does, but it's necessary to make it work
+counties.df <- join(counties.df, counties@data, by="id")
+# This is a world map, so subset the lat and long to zoom in on the US
+counties.df2 <- counties.df[counties.df$long < -60 & counties.df$long > -130 & counties.df$lat > 25 & counties.df$lat < 50,]
+```
+Create Map
+```{r}
+b <- ggplot() + geom_polygon(data = counties.df2, aes(x = long, y = lat, group = group, fill = Chronic_Use_Rate), color = "black", size = 0.05)+ coord_map() + scale_fill_distiller(palette = "YlOrRd", na.value = "white", labels = percent, breaks = pretty_breaks(n = 10)) + guides(fill = guide_legend(reverse = TRUE)) + theme_nothing(legend = TRUE) + labs(title = "Chronic Opioid Use Prior to Total Knee Arthroplasty", fill = "") + theme(plot.title = element_text(size=20, family = "Times"),legend.key.height = unit(.35, "cm"),legend.position = c(.9, .25))
+
+#TIFF
+ppi <- 300
+tiff("EpiChronic.tiff", width = 6*ppi, height = 5*ppi, res = ppi)
+b
+dev.off()
+```
+
+## County-level results
+
+```{r}
+# 5th %ile and 95th %ile county for chronic use rate
+quantile(chronicMapDF$Chronic_Use_Rate, probs=c(.05, .95), na.rm=T)
+```

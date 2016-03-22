@@ -138,8 +138,8 @@ Create Kaplan-Meier Curve
 ```{r}
 objNpsurv <- npsurv(Surv(data2$t2rev, data2$RevLogical) ~ data2$MEDgrp)
 par(mar=c(5.1,4.1,4.1,5.1))
-survplot(objNpsurv, ylim = c(.9,1), xlab = "Years After TKA", ylab = "Percent of TKAs Unrevised", conf.type="log-log", levels.only=T, conf="none", lty = c(2,1,5,4), col = c(2,1,3,4), lwd = 3, time.inc=1, label.curves=F)
-legend(x=1.4, y = 1,cex=1, bty="n", legend=c("Non User", "First Tertile ( < 3.7 ME/ Day)", "Second Tertile (3.7 - 14.3 ME/ Day)", "Third Tertile ( > 14.3 ME/ Day)"), col = c(1,2,3,4), lty = c(1,2,5,4), lwd=3, y.intersp=.5)
+survplot(objNpsurv, ylim = c(.9,1), xlab = "Years After Total Knee Arthroplasty", ylab = "Percent of Total Knee Arthroplasties Unrevised", conf.type="log-log", levels.only=T, conf="none", lty = c(2,1,5,4), col = c(2,1,3,4), lwd = 3, time.inc=1, label.curves=F)
+legend(x=-0.3, y = .94, cex=1, bty="n", legend=c("Non User", "First Tertile (< 3.7 MEDs/ Day)", "Second Tertile (3.7 - 14.3 MEDs/ Day)", "Third Tertile (> 14.3 MEDs/ Day)"), col = c(1,2,3,4), lty = c(1,2,5,4), lwd=3, y.intersp=.5)
 title(main = "Survival Curve of TKA Revision by Opioid Use Group")
 segments(7.1,.911,7.1,.921)
 segments(7.1,.923,7.1,.936)
